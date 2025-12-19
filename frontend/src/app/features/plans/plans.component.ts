@@ -55,6 +55,8 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
         </table>
       </div>
 
+
+
       <!-- Form Modal -->
       <div class="modal-overlay" *ngIf="showForm" (click)="closeForm()">
         <div class="modal" (click)="$event.stopPropagation()">
@@ -63,13 +65,19 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
             <div class="form-group">
               <label>Company *</label>
               <select [(ngModel)]="formData.companyId" name="companyId" required>
-                <option *ngFor="let company of companies" [value]="company.id">{{ company.name }}</option>
+                <option *ngFor="let company of companies" [value]="company.id">
+                  {{ company.name }}
+                </option>
               </select>
             </div>
+
             <div class="form-group">
               <label>Plan Name *</label>
               <input type="text" [(ngModel)]="formData.name" name="name" required />
             </div>
+
+            <!-- Min & Max Sum Insured (Temporarily Disabled) -->
+            <!--
             <div class="form-row">
               <div class="form-group">
                 <label>Min Sum Insured</label>
@@ -80,10 +88,18 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
                 <input type="number" [(ngModel)]="formData.sumInsuredMax" name="sumInsuredMax" />
               </div>
             </div>
+            -->
+
+            <!-- Description (Temporarily Disabled) -->
+            <!--
             <div class="form-group">
               <label>Description</label>
               <textarea [(ngModel)]="formData.description" name="description" rows="3"></textarea>
             </div>
+            -->
+
+            <!-- Status (Temporarily Disabled) -->
+            <!--
             <div class="form-group">
               <label>Status</label>
               <select [(ngModel)]="formData.status" name="status">
@@ -92,13 +108,20 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
                 <option value="published">Published</option>
               </select>
             </div>
+            -->
+
             <div class="form-actions">
               <button type="button" class="btn btn-secondary" (click)="closeForm()">Cancel</button>
-              <button type="submit" class="btn btn-primary">{{ editingPlan ? 'Update' : 'Create' }}</button>
+              <button type="submit" class="btn btn-primary">
+                {{ editingPlan ? 'Update' : 'Create' }}
+              </button>
             </div>
           </form>
         </div>
       </div>
+
+
+
 
       <!-- View Plan Modal -->
       <div class="modal-overlay" *ngIf="viewingPlan" (click)="viewingPlan = null">

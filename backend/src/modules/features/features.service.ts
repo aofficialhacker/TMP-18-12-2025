@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Feature } from '../../entities/feature.entity';
@@ -16,155 +20,239 @@ export class FeaturesService {
     private readonly categoryRepository: Repository<Category>,
   ) {}
 
-  async findAll(categoryId?: number, includeInactive = false): Promise<Feature[]> {
+  /* ======================================================
+     FETCH
+     ====================================================== */
+
+  async findAll(
+    categoryId?: number,
+    includeInactive = false,
+  ): Promise<Feature[]> {
     const where: any = includeInactive ? {} : { isActive: true };
-    if (categoryId) {
+    if (categoryId !== undefined) {
       where.categoryId = categoryId;
     }
+
     return this.featureRepository.find({
       where,
       relations: ['category'],
-      order: { displayOrder: 'ASC', name: 'ASC' },
+      order: { displayOrder: 'ASC' }, // GLOBAL ORDER
     });
   }
 
   async findOne(id: number): Promise<Feature> {
-    const feature = await this.featureRepository.findOne({
-      where: { id },
-      relations: ['category'],
-    });
-
+    const feature = await this.featureRepository.findOne({ where: { id } });
     if (!feature) {
-      throw new NotFoundException(`Feature with ID ${id} not found`);
+      throw new NotFoundException(`Feature ${id} not found`);
     }
-
     return feature;
   }
 
-  async create(createFeatureDto: CreateFeatureDto): Promise<Feature> {
-    // Verify category exists
-    const category = await this.categoryRepository.findOne({
-      where: { id: createFeatureDto.categoryId, isActive: true },
+  /* ======================================================
+     PREVIEW CURRENT vs PROPOSED DISPLAY ORDER (GLOBAL)
+     ====================================================== */
+
+  async previewOrderShift(
+    _categoryId: number, // kept for API compatibility
+    displayOrder: number,
+    newFeatureName: string,
+  ) {
+    const features = await this.featureRepository.find({
+      where: { isActive: true },
+      order: { displayOrder: 'ASC' },
     });
 
-    if (!category) {
-      throw new NotFoundException(
-        `Category with ID ${createFeatureDto.categoryId} not found or inactive`,
-      );
-    }
+    const current = features.map((f, index) => ({
+      displayOrder: index + 1,
+      name: f.name,
+    }));
 
-    const feature = this.featureRepository.create({
-      ...createFeatureDto,
-      extractionKeywords: createFeatureDto.extractionKeywords
-        ? JSON.stringify(createFeatureDto.extractionKeywords)
-        : null,
-    });
+    const insertAt = Math.min(displayOrder, current.length + 1);
+    const conflict = insertAt <= current.length;
 
-    return this.featureRepository.save(feature);
-  }
+    const proposed: { displayOrder: number; name: string }[] = [];
+    let order = 1;
 
-  async update(id: number, updateFeatureDto: UpdateFeatureDto): Promise<Feature> {
-    const feature = await this.findOne(id);
-
-    if (updateFeatureDto.categoryId) {
-      const category = await this.categoryRepository.findOne({
-        where: { id: updateFeatureDto.categoryId, isActive: true },
-      });
-      if (!category) {
-        throw new NotFoundException(
-          `Category with ID ${updateFeatureDto.categoryId} not found or inactive`,
-        );
+    for (let i = 0; i < current.length; i++) {
+      if (order === insertAt) {
+        proposed.push({
+          displayOrder: order++,
+          name: newFeatureName,
+        });
       }
+
+      proposed.push({
+        displayOrder: order++,
+        name: current[i].name,
+      });
     }
 
-    const updateData: any = { ...updateFeatureDto };
-    if (updateFeatureDto.extractionKeywords) {
-      updateData.extractionKeywords = JSON.stringify(updateFeatureDto.extractionKeywords);
+    if (insertAt > current.length) {
+      proposed.push({
+        displayOrder: order,
+        name: newFeatureName,
+      });
     }
 
-    Object.assign(feature, updateData);
-    return this.featureRepository.save(feature);
+    return {
+      conflict,
+      current,
+      proposed,
+    };
   }
 
-  async remove(id: number): Promise<{ message: string }> {
+  /* ======================================================
+     CREATE FEATURE (GLOBAL DISPLAY ORDER)
+     ====================================================== */
+
+  async create(createFeatureDto: CreateFeatureDto): Promise<Feature> {
+    return this.featureRepository.manager.transaction(async manager => {
+      const category = await manager.findOne(Category, {
+        where: { id: createFeatureDto.categoryId, isActive: true },
+      });
+
+      if (!category) {
+        throw new NotFoundException('Category not found');
+      }
+
+      // NORMALIZE DISPLAY ORDER
+      if (
+        createFeatureDto.displayOrder == null ||
+        createFeatureDto.displayOrder < 1
+      ) {
+        const max = await manager
+          .createQueryBuilder(Feature, 'f')
+          .select('MAX(f.displayOrder)', 'max')
+          .getRawOne();
+
+        createFeatureDto.displayOrder = (max?.max || 0) + 1;
+      }
+
+      // 🔥 GLOBAL SHIFT (NO CATEGORY FILTER)
+      await manager
+        .createQueryBuilder()
+        .update(Feature)
+        .set({ displayOrder: () => 'display_order + 1' })
+        .where('display_order >= :displayOrder', {
+          displayOrder: createFeatureDto.displayOrder,
+        })
+        .execute();
+
+      const feature = manager.create(Feature, {
+        ...createFeatureDto,
+        extractionKeywords: createFeatureDto.extractionKeywords
+          ? JSON.stringify(createFeatureDto.extractionKeywords)
+          : null,
+      });
+
+      return manager.save(feature);
+    });
+  }
+
+  /* ======================================================
+     UPDATE FEATURE (GLOBAL DISPLAY ORDER)
+     ====================================================== */
+
+  async update(id: number, updateFeatureDto: UpdateFeatureDto) {
+    return this.featureRepository.manager.transaction(async manager => {
+      const feature = await manager.findOne(Feature, { where: { id } });
+      if (!feature) {
+        throw new NotFoundException('Feature not found');
+      }
+
+      const oldOrder = feature.displayOrder;
+      const newOrder =
+        updateFeatureDto.displayOrder != null
+          ? updateFeatureDto.displayOrder
+          : oldOrder;
+
+      if (newOrder !== oldOrder) {
+        if (newOrder < oldOrder) {
+          // MOVE UP
+          await manager
+            .createQueryBuilder()
+            .update(Feature)
+            .set({ displayOrder: () => 'display_order + 1' })
+            .where('display_order >= :newOrder', { newOrder })
+            .andWhere('display_order < :oldOrder', { oldOrder })
+            .execute();
+        } else {
+          // MOVE DOWN
+          await manager
+            .createQueryBuilder()
+            .update(Feature)
+            .set({ displayOrder: () => 'display_order - 1' })
+            .where('display_order > :oldOrder', { oldOrder })
+            .andWhere('display_order <= :newOrder', { newOrder })
+            .execute();
+        }
+
+        feature.displayOrder = newOrder;
+      }
+
+      Object.assign(feature, {
+        ...updateFeatureDto,
+        extractionKeywords: updateFeatureDto.extractionKeywords
+          ? JSON.stringify(updateFeatureDto.extractionKeywords)
+          : feature.extractionKeywords,
+      });
+
+      return manager.save(feature);
+    });
+  }
+
+  /* ======================================================
+     DELETE (SOFT)
+     ====================================================== */
+
+  async remove(id: number) {
     const feature = await this.findOne(id);
     feature.isActive = false;
     await this.featureRepository.save(feature);
-    return { message: `Feature ${feature.name} has been deactivated` };
+    return { message: 'Feature deactivated' };
   }
 
-  async updateWeights(
-    categoryId: number,
-    updateWeightsDto: UpdateFeatureWeightsDto,
-  ): Promise<Feature[]> {
-    const { features } = updateWeightsDto;
+  /* ======================================================
+     WEIGHTS
+     ====================================================== */
 
-    // Validate that weights sum to 100
-    const totalWeight = features.reduce((sum, feat) => sum + feat.weightage, 0);
-    if (totalWeight !== 100) {
-      throw new BadRequestException(
-        `Feature weights within category must sum to 100. Current total: ${totalWeight}`,
-      );
+  async updateWeights(categoryId: number, dto: UpdateFeatureWeightsDto) {
+    const total = dto.features.reduce((sum, f) => sum + f.weightage, 0);
+
+    if (total !== 100) {
+      throw new BadRequestException('Weights must sum to 100');
     }
 
-    // Verify all features exist, are active, and belong to the category
-    const featureIds = features.map((f) => f.id);
-    const existingFeatures = await this.featureRepository.find({
-      where: featureIds.map((id) => ({ id, categoryId, isActive: true })),
-    });
-
-    if (existingFeatures.length !== featureIds.length) {
-      throw new BadRequestException(
-        'One or more features not found, inactive, or do not belong to this category',
-      );
-    }
-
-    // Update weights
-    for (const featWeight of features) {
-      await this.featureRepository.update(featWeight.id, {
-        weightage: featWeight.weightage,
+    for (const f of dto.features) {
+      await this.featureRepository.update(f.id, {
+        weightage: f.weightage,
       });
     }
 
     return this.findAll(categoryId);
   }
 
-  async getWeightsByCategoryId(categoryId: number): Promise<{
-    categoryId: number;
-    features: { id: number; name: string; weightage: number }[];
-    total: number;
-    valid: boolean;
-  }> {
+  async getWeightsByCategoryId(categoryId: number) {
     const features = await this.featureRepository.find({
       where: { categoryId, isActive: true },
+      order: { displayOrder: 'ASC' },
     });
 
     const total = features.reduce((sum, f) => sum + f.weightage, 0);
 
     return {
-      categoryId,
-      features: features.map((f) => ({
-        id: f.id,
-        name: f.name,
-        weightage: f.weightage,
-      })),
       total,
       valid: total === 100,
+      features,
     };
   }
 
-  async validateWeightsForCategory(categoryId: number): Promise<{
-    valid: boolean;
-    total: number;
-    message: string;
-  }> {
-    const result = await this.getWeightsByCategoryId(categoryId);
+  async validateWeightsForCategory(categoryId: number) {
+    const res = await this.getWeightsByCategoryId(categoryId);
     return {
-      valid: result.valid,
-      total: result.total,
-      message: result.valid
-        ? 'Feature weights are valid (sum = 100)'
-        : `Feature weights for category must sum to 100. Current total: ${result.total}`,
+      valid: res.valid,
+      total: res.total,
+      message: res.valid ? 'Valid' : 'Invalid',
     };
   }
 }

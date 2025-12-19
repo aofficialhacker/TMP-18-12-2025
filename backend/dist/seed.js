@@ -49,7 +49,7 @@ const dataSource = new typeorm_1.DataSource({
     host: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT, 10) || 3306,
     username: process.env.DB_USERNAME || 'root',
-    password: process.env.DB_PASSWORD || '123456',
+    password: process.env.DB_PASSWORD || 'Helloworld@11',
     database: process.env.DB_DATABASE || 'testmypolicy2',
     entities: [admin_user_entity_1.AdminUser, category_entity_1.Category, feature_entity_1.Feature, company_entity_1.Company, plan_entity_1.Plan, plan_feature_value_entity_1.PlanFeatureValue, brochure_upload_entity_1.BrochureUpload],
     synchronize: true,

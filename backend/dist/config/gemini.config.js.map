@@ -1,1 +1,1 @@
-{"version":3,"file":"gemini.config.js","sourceRoot":"","sources":["../../src/config/gemini.config.ts"],"names":[],"mappings":";;;AAAO,MAAM,YAAY,GAAG,GAAG,EAAE,CAAC,CAAC;IACjC,MAAM,EAAE,OAAO,CAAC,GAAG,CAAC,cAAc;IAClC,KAAK,EAAE,kBAAkB;CAC1B,CAAC,CAAC;AAHU,QAAA,YAAY,gBAGtB"}
+{"version":3,"file":"gemini.config.js","sourceRoot":"","sources":["../../src/config/gemini.config.ts"],"names":[],"mappings":";;;AAAO,MAAM,YAAY,GAAG,GAAG,EAAE,CAAC,CAAC;IACjC,MAAM,EAAE,OAAO,CAAC,GAAG,CAAC,cAAc;IAClC,KAAK,EAAE,wBAAwB;CAChC,CAAC,CAAC;AAHU,QAAA,YAAY,gBAGtB"}

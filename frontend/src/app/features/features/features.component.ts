@@ -33,6 +33,7 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
         <table class="data-table">
           <thead>
             <tr>
+              <th>Display Order</th>
               <th>Feature Name</th>
               <th>Category</th>
               <th>Weightage</th>
@@ -42,7 +43,9 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
             </tr>
           </thead>
           <tbody>
+          
             <tr *ngFor="let feature of features">
+              <td>{{ feature.displayOrder }}</td>
               <td><strong>{{ feature.name }}</strong></td>
               <td>{{ feature.category?.name }}</td>
               <td>

@@ -1,7 +1,20 @@
-import { IsNotEmpty, IsOptional, IsString, IsBoolean, IsInt, Min, Max, IsArray, IsEnum, IsObject } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsBoolean,
+  IsInt,
+  Min,
+  Max,
+  IsArray,
+  IsEnum,
+  IsObject,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 import { ValueType, StandardizationRules } from '../../extraction/types/standardization.types';
 
 export class CreateFeatureDto {
+  @Type(() => Number)
   @IsInt()
   @IsNotEmpty()
   categoryId: number;
@@ -14,6 +27,7 @@ export class CreateFeatureDto {
   @IsOptional()
   description?: string;
 
+  @Type(() => Number)
   @IsInt()
   @Min(0)
   @Max(100)
@@ -36,6 +50,7 @@ export class CreateFeatureDto {
   @IsOptional()
   standardizationRules?: StandardizationRules;
 
+  @Type(() => Number)
   @IsInt()
   @IsOptional()
   displayOrder?: number;

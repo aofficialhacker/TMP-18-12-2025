@@ -35,7 +35,27 @@ export class CategoriesService {
     return category;
   }
 
+  // ✅ IMPORTANT FIX IS HERE
   async create(createCategoryDto: CreateCategoryDto): Promise<Category> {
+    if (createCategoryDto.isActive) {
+      const activeCategories = await this.categoryRepository.find({
+        where: { isActive: true },
+      });
+
+      const totalActiveWeight = activeCategories.reduce(
+        (sum, c) => sum + c.weightage,
+        0,
+      );
+
+      const newTotal = totalActiveWeight + createCategoryDto.weightage;
+
+      if (newTotal > 100) {
+        throw new BadRequestException(
+          'Total weight exceeds 100%. Please free up some weight.',
+        );
+      }
+    }
+
     const category = this.categoryRepository.create(createCategoryDto);
     return this.categoryRepository.save(category);
   }
@@ -56,7 +76,6 @@ export class CategoriesService {
   async updateWeights(updateWeightsDto: UpdateCategoryWeightsDto): Promise<Category[]> {
     const { categories } = updateWeightsDto;
 
-    // Validate that weights sum to 100
     const totalWeight = categories.reduce((sum, cat) => sum + cat.weightage, 0);
     if (totalWeight !== 100) {
       throw new BadRequestException(
@@ -64,7 +83,6 @@ export class CategoriesService {
       );
     }
 
-    // Verify all categories exist and are active
     const categoryIds = categories.map((c) => c.id);
     const existingCategories = await this.categoryRepository.find({
       where: categoryIds.map((id) => ({ id, isActive: true })),
@@ -74,7 +92,6 @@ export class CategoriesService {
       throw new BadRequestException('One or more categories not found or inactive');
     }
 
-    // Update weights
     for (const catWeight of categories) {
       await this.categoryRepository.update(catWeight.id, {
         weightage: catWeight.weightage,

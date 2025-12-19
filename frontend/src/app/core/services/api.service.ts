@@ -11,9 +11,13 @@ export class ApiService {
 
   constructor(private http: HttpClient) {}
 
-  // Companies
+  /* ===================== Companies ===================== */
+
   getCompanies(includeInactive = false): Observable<any[]> {
-    const params = new HttpParams().set('includeInactive', includeInactive.toString());
+    const params = new HttpParams().set(
+      'includeInactive',
+      includeInactive.toString(),
+    );
     return this.http.get<any[]>(`${this.apiUrl}/companies`, { params });
   }
 
@@ -33,9 +37,13 @@ export class ApiService {
     return this.http.delete<any>(`${this.apiUrl}/companies/${id}`);
   }
 
-  // Categories
+  /* ===================== Categories ===================== */
+
   getCategories(includeInactive = false): Observable<any[]> {
-    const params = new HttpParams().set('includeInactive', includeInactive.toString());
+    const params = new HttpParams().set(
+      'includeInactive',
+      includeInactive.toString(),
+    );
     return this.http.get<any[]>(`${this.apiUrl}/categories`, { params });
   }
 
@@ -55,17 +63,50 @@ export class ApiService {
     return this.http.delete<any>(`${this.apiUrl}/categories/${id}`);
   }
 
-  updateCategoryWeights(categories: { id: number; weightage: number }[]): Observable<any> {
-    return this.http.put<any>(`${this.apiUrl}/categories/weights`, { categories });
+  updateCategoryWeights(
+    categories: { id: number; weightage: number }[],
+  ): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/categories/weights`, {
+      categories,
+    });
   }
 
   validateCategoryWeights(): Observable<any> {
-    return this.http.get<any>(`${this.apiUrl}/categories/validate-weights`);
+    return this.http.get<any>(
+      `${this.apiUrl}/categories/validate-weights`,
+    );
   }
 
-  // Features
-  getFeatures(categoryId?: number, includeInactive = false): Observable<any[]> {
-    let params = new HttpParams().set('includeInactive', includeInactive.toString());
+  /* ===================== Features ===================== */
+
+  /**
+   * 🔥 PREVIEW DISPLAY ORDER SHIFT
+   * Sends categoryId + displayOrder + feature name
+   */
+  previewFeatureOrder(
+    categoryId: number,
+    displayOrder: number,
+    name: string,
+  ): Observable<any> {
+    const params = new HttpParams()
+      .set('categoryId', categoryId.toString())
+      .set('displayOrder', displayOrder.toString())
+      .set('name', name);
+
+    return this.http.get<any>(
+      `${this.apiUrl}/features/preview-order-shift`,
+      { params },
+    );
+  }
+
+  getFeatures(
+    categoryId?: number,
+    includeInactive = false,
+  ): Observable<any[]> {
+    let params = new HttpParams().set(
+      'includeInactive',
+      includeInactive.toString(),
+    );
     if (categoryId) {
       params = params.set('categoryId', categoryId.toString());
     }
@@ -88,17 +129,32 @@ export class ApiService {
     return this.http.delete<any>(`${this.apiUrl}/features/${id}`);
   }
 
-  updateFeatureWeights(categoryId: number, features: { id: number; weightage: number }[]): Observable<any> {
-    return this.http.put<any>(`${this.apiUrl}/features/weights/${categoryId}`, { features });
+  updateFeatureWeights(
+    categoryId: number,
+    features: { id: number; weightage: number }[],
+  ): Observable<any> {
+    return this.http.put<any>(
+      `${this.apiUrl}/features/weights/${categoryId}`,
+      { features },
+    );
   }
 
   validateFeatureWeights(categoryId: number): Observable<any> {
-    return this.http.get<any>(`${this.apiUrl}/features/validate-weights/${categoryId}`);
+    return this.http.get<any>(
+      `${this.apiUrl}/features/validate-weights/${categoryId}`,
+    );
   }
 
-  // Plans
-  getPlans(companyId?: number, includeInactive = false): Observable<any[]> {
-    let params = new HttpParams().set('includeInactive', includeInactive.toString());
+  /* ===================== Plans ===================== */
+
+  getPlans(
+    companyId?: number,
+    includeInactive = false,
+  ): Observable<any[]> {
+    let params = new HttpParams().set(
+      'includeInactive',
+      includeInactive.toString(),
+    );
     if (companyId) {
       params = params.set('companyId', companyId.toString());
     }
@@ -121,11 +177,18 @@ export class ApiService {
     return this.http.delete<any>(`${this.apiUrl}/plans/${id}`);
   }
 
-  updatePlanFeatureValues(planId: number, featureValues: any[]): Observable<any> {
-    return this.http.put<any>(`${this.apiUrl}/plans/${planId}/feature-values`, { featureValues });
+  updatePlanFeatureValues(
+    planId: number,
+    featureValues: any[],
+  ): Observable<any> {
+    return this.http.put<any>(
+      `${this.apiUrl}/plans/${planId}/feature-values`,
+      { featureValues },
+    );
   }
 
-  // Extraction
+  /* ===================== Extraction ===================== */
+
   getUploads(): Observable<any[]> {
     return this.http.get<any[]>(`${this.apiUrl}/extraction/uploads`);
   }
@@ -134,38 +197,54 @@ export class ApiService {
     return this.http.get<any>(`${this.apiUrl}/extraction/${id}`);
   }
 
-  uploadBrochure(file: File, companyId?: number, planId?: number): Observable<any> {
+  uploadBrochure(
+    file: File,
+    companyId?: number,
+    planId?: number,
+  ): Observable<any> {
     const formData = new FormData();
     formData.append('file', file);
 
     let params = new HttpParams();
-    if (companyId) {
-      params = params.set('companyId', companyId.toString());
-    }
-    if (planId) {
-      params = params.set('planId', planId.toString());
-    }
+    if (companyId) params = params.set('companyId', companyId.toString());
+    if (planId) params = params.set('planId', planId.toString());
 
-    return this.http.post<any>(`${this.apiUrl}/extraction/upload`, formData, { params });
+    return this.http.post<any>(
+      `${this.apiUrl}/extraction/upload`,
+      formData,
+      { params },
+    );
   }
 
   processExtraction(uploadId: number): Observable<any> {
-    return this.http.post<any>(`${this.apiUrl}/extraction/${uploadId}/process`, {});
+    return this.http.post<any>(
+      `${this.apiUrl}/extraction/${uploadId}/process`,
+      {},
+    );
   }
 
   getExtractionStatus(uploadId: number): Observable<any> {
-    return this.http.get<any>(`${this.apiUrl}/extraction/${uploadId}/status`);
+    return this.http.get<any>(
+      `${this.apiUrl}/extraction/${uploadId}/status`,
+    );
   }
 
   getExtractionResults(uploadId: number): Observable<any> {
-    return this.http.get<any>(`${this.apiUrl}/extraction/${uploadId}/results`);
+    return this.http.get<any>(
+      `${this.apiUrl}/extraction/${uploadId}/results`,
+    );
   }
 
   verifyExtraction(uploadId: number, data: any): Observable<any> {
-    return this.http.post<any>(`${this.apiUrl}/extraction/${uploadId}/verify`, data);
+    return this.http.post<any>(
+      `${this.apiUrl}/extraction/${uploadId}/verify`,
+      data,
+    );
   }
 
   deleteUpload(uploadId: number): Observable<any> {
-    return this.http.delete<any>(`${this.apiUrl}/extraction/${uploadId}`);
+    return this.http.delete<any>(
+      `${this.apiUrl}/extraction/${uploadId}`,
+    );
   }
 }
