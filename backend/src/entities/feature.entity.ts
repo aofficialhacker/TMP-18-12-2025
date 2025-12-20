@@ -7,12 +7,14 @@ import {
   ManyToOne,
   OneToMany,
   JoinColumn,
+  Unique,
 } from 'typeorm';
 import { Category } from './category.entity';
 import { PlanFeatureValue } from './plan-feature-value.entity';
 import { ValueType, StandardizationRules } from '../modules/extraction/types/standardization.types';
 
 @Entity('features')
+@Unique(['displayOrder'])
 export class Feature {
   @PrimaryGeneratedColumn()
   id: number;

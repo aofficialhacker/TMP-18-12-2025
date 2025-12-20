@@ -53,8 +53,25 @@ export class FeaturesService {
       );
     }
 
+    // Handle display order
+    let displayOrder = createFeatureDto.displayOrder;
+
+    if (displayOrder === undefined || displayOrder === null) {
+      // Auto-assign to end
+      const maxOrder = await this.getMaxDisplayOrder();
+      displayOrder = maxOrder + 1;
+    } else {
+      // Check if the display order is already occupied
+      const existingFeature = await this.getFeatureAtDisplayOrder(displayOrder);
+      if (existingFeature) {
+        // Shift all features at this position and above
+        await this.shiftDisplayOrdersUp(displayOrder);
+      }
+    }
+
     const feature = this.featureRepository.create({
       ...createFeatureDto,
+      displayOrder,
       extractionKeywords: createFeatureDto.extractionKeywords
         ? JSON.stringify(createFeatureDto.extractionKeywords)
         : null,
@@ -75,6 +92,28 @@ export class FeaturesService {
           `Category with ID ${updateFeatureDto.categoryId} not found or inactive`,
         );
       }
+    }
+
+    // Handle display order changes
+    if (
+      updateFeatureDto.displayOrder !== undefined &&
+      updateFeatureDto.displayOrder !== feature.displayOrder
+    ) {
+      const oldDisplayOrder = feature.displayOrder;
+      const newDisplayOrder = updateFeatureDto.displayOrder;
+
+      // Check if the new display order is occupied by another feature
+      const existingFeature = await this.getFeatureAtDisplayOrder(
+        newDisplayOrder,
+        id,
+      );
+      if (existingFeature) {
+        // Shift features at the new position and above to make room
+        await this.shiftDisplayOrdersUp(newDisplayOrder, id);
+      }
+
+      // Fill the gap at the old position by shifting down
+      await this.shiftDisplayOrdersDown(oldDisplayOrder);
     }
 
     const updateData: any = { ...updateFeatureDto };
@@ -166,5 +205,69 @@ export class FeaturesService {
         ? 'Feature weights are valid (sum = 100)'
         : `Feature weights for category must sum to 100. Current total: ${result.total}`,
     };
+  }
+
+  // Helper methods for display order management
+  private async getMaxDisplayOrder(): Promise<number> {
+    const result = await this.featureRepository
+      .createQueryBuilder('feature')
+      .select('MAX(feature.displayOrder)', 'max')
+      .getRawOne();
+    return result?.max || 0;
+  }
+
+  private async shiftDisplayOrdersUp(
+    fromOrder: number,
+    excludeId?: number,
+  ): Promise<void> {
+    // Fetch all features that need to be shifted, ordered DESC to avoid unique constraint conflicts
+    const queryBuilder = this.featureRepository
+      .createQueryBuilder('feature')
+      .where('feature.displayOrder >= :fromOrder', { fromOrder })
+      .orderBy('feature.displayOrder', 'DESC');
+
+    if (excludeId) {
+      queryBuilder.andWhere('feature.id != :excludeId', { excludeId });
+    }
+
+    const features = await queryBuilder.getMany();
+
+    // Update each feature individually from highest to lowest to avoid conflicts
+    for (const feature of features) {
+      await this.featureRepository.update(feature.id, {
+        displayOrder: feature.displayOrder + 1,
+      });
+    }
+  }
+
+  private async shiftDisplayOrdersDown(fromOrder: number): Promise<void> {
+    // Fetch all features that need to be shifted, ordered ASC to avoid unique constraint conflicts
+    const features = await this.featureRepository
+      .createQueryBuilder('feature')
+      .where('feature.displayOrder > :fromOrder', { fromOrder })
+      .orderBy('feature.displayOrder', 'ASC')
+      .getMany();
+
+    // Update each feature individually from lowest to highest to avoid conflicts
+    for (const feature of features) {
+      await this.featureRepository.update(feature.id, {
+        displayOrder: feature.displayOrder - 1,
+      });
+    }
+  }
+
+  private async getFeatureAtDisplayOrder(
+    order: number,
+    excludeId?: number,
+  ): Promise<Feature | null> {
+    const queryBuilder = this.featureRepository
+      .createQueryBuilder('feature')
+      .where('feature.displayOrder = :order', { order });
+
+    if (excludeId) {
+      queryBuilder.andWhere('feature.id != :excludeId', { excludeId });
+    }
+
+    return queryBuilder.getOne();
   }
 }
