@@ -47,14 +47,13 @@ exports.GeminiService = void 0;
 const common_1 = require("@nestjs/common");
 const generative_ai_1 = require("@google/generative-ai");
 const fs = __importStar(require("fs"));
-const standardization_types_1 = require("./types/standardization.types");
 let GeminiService = GeminiService_1 = class GeminiService {
     constructor() {
         this.logger = new common_1.Logger(GeminiService_1.name);
         const apiKey = process.env.GEMINI_API_KEY;
         if (apiKey && apiKey !== 'your-gemini-api-key') {
             this.genAI = new generative_ai_1.GoogleGenerativeAI(apiKey);
-            this.model = this.genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
+            this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
         }
         else {
             this.logger.warn('Gemini API key not configured. Feature extraction will use mock data.');
@@ -69,38 +68,28 @@ let GeminiService = GeminiService_1 = class GeminiService {
             const pdfBuffer = fs.readFileSync(filePath);
             const pdfBase64 = pdfBuffer.toString('base64');
             const featuresList = features
-                .map((f) => {
-                if (f.extractionPrompt) {
-                    return `- ${f.name} : ${f.extractionPrompt}`;
-                }
-                else {
-                    const keywords = f.extractionKeywords
-                        ? JSON.parse(f.extractionKeywords).join(', ')
-                        : f.name;
-                    return `- Feature ID: ${f.id}, Name: "${f.name}", Search keywords: [${keywords}]`;
-                }
-            })
+                .map((f) => f.extractionPrompt
+                ? `- ${f.name} : ${f.extractionPrompt}`
+                : `- Feature ID: ${f.id}, Name: "${f.name}", Search keywords: [${f.extractionKeywords
+                    ? JSON.parse(f.extractionKeywords).join(', ')
+                    : f.name}]`)
                 .join('\n');
             const prompt = `
-You are analyzing a health insurance policy brochure PDF. Extract specific information for each feature listed below.
+You are analyzing a health insurance policy brochure PDF.
 
-For each feature, the format is "Feature Name : extraction instruction". Follow the instruction to extract the appropriate value.
-If a feature is not found or not applicable, indicate "Not Found" or "Not Covered".
+Extract the following features and return ONLY valid JSON array.
 
-Features to extract:
 ${featuresList}
 
-IMPORTANT: Return your response as a valid JSON array only, with no additional text, markdown formatting, or code blocks. The format should be:
+Format:
 [
   {
     "featureId": <number>,
     "featureName": "<string>",
-    "extractedValue": "<string - the actual value following the extraction instruction>",
-    "confidence": "<high/medium/low>"
+    "extractedValue": "<string>",
+    "confidence": "<high|medium|low>"
   }
 ]
-
-Be thorough and extract exact values, limits, percentages, and coverage details when available.
 `;
             const result = await this.model.generateContent([
                 {
@@ -113,29 +102,60 @@ Be thorough and extract exact values, limits, percentages, and coverage details 
             ]);
             const responseText = result.response.text();
             this.logger.debug(`Gemini response: ${responseText}`);
-            const cleanedResponse = responseText
-                .replace(/```json\n?/g, '')
-                .replace(/```\n?/g, '')
+            const cleaned = responseText
+                .replace(/```json/g, '')
+                .replace(/```/g, '')
                 .trim();
-            const extractedFeatures = JSON.parse(cleanedResponse);
-            return extractedFeatures;
+            return JSON.parse(cleaned);
         }
         catch (error) {
             this.logger.error(`Error extracting features: ${error.message}`);
             throw error;
         }
     }
-    mockExtraction(features) {
-        return features.map((f) => ({
-            featureId: f.id,
-            featureName: f.name,
-            extractedValue: `[Mock] Sample value for ${f.name} - Configure GEMINI_API_KEY for real extraction`,
-            confidence: 'low',
-        }));
+    async standardizeBatchOnce(items) {
+        if (!this.model) {
+            this.logger.warn('Using mock batch standardization');
+            return Object.fromEntries(items.map((i) => [i.featureId, i.extractedValue]));
+        }
+        try {
+            const prompt = `
+You are standardizing health insurance feature values.
+
+For EACH item below, return a standardized value.
+
+Return ONLY valid JSON object in this format:
+{
+  "<featureId>": "<standardizedValue>"
+}
+
+Items:
+${items
+                .map((i) => `- ID: ${i.featureId}, Feature: ${i.featureName}, Value: "${i.extractedValue}"`)
+                .join('\n')}
+
+Rules:
+- Be concise
+- No explanations
+- No markdown
+- No extra text
+`;
+            const result = await this.model.generateContent(prompt);
+            const responseText = result.response.text().trim();
+            this.logger.debug(`Batch standardization response: ${responseText}`);
+            const cleaned = responseText
+                .replace(/```json/g, '')
+                .replace(/```/g, '')
+                .trim();
+            return JSON.parse(cleaned);
+        }
+        catch (error) {
+            this.logger.error(`Error in batch standardization: ${error.message}`);
+            throw error;
+        }
     }
     async standardizeFeatureValue(extractedValue, featureName, valueType, rules) {
         if (!this.model) {
-            this.logger.warn('Using mock standardization due to missing API key');
             return this.mockStandardization(extractedValue, valueType, rules);
         }
         try {
@@ -151,91 +171,24 @@ Be thorough and extract exact values, limits, percentages, and coverage details 
         }
     }
     buildStandardizationPrompt(extractedValue, featureName, valueType, rules) {
-        let prompt = `You are standardizing health insurance policy feature values.
-
-Feature Name: ${featureName}
+        let prompt = `
+Feature: ${featureName}
 Extracted Value: "${extractedValue}"
-Expected Value Type: ${valueType}
-
+Expected Type: ${valueType}
 `;
-        switch (valueType) {
-            case standardization_types_1.ValueType.ENUM:
-                prompt += `Allowed standardized values: ${rules?.allowedValues?.join(', ') || 'Any valid category'}
-
-Based on the extracted value, return ONLY the most appropriate standardized value from the allowed list.
-If the value indicates the feature is not covered, return "NOT_COVERED".
-If unclear, return "${rules?.defaultValue || 'NOT_SPECIFIED'}".`;
-                break;
-            case standardization_types_1.ValueType.BOOLEAN:
-                prompt += `Return ONLY one of: COVERED, NOT_COVERED, PARTIAL, LIMITED
-
-- COVERED: If the feature is fully available/included
-- NOT_COVERED: If the feature is not available/excluded
-- PARTIAL: If the feature is partially covered with conditions
-- LIMITED: If coverage is limited to specific scenarios`;
-                break;
-            case standardization_types_1.ValueType.NUMERIC:
-                prompt += `Return ONLY a numeric value.
-${rules?.normalize?.unit ? `Unit: ${rules.normalize.unit}` : ''}
-
-Extract the numeric value from the text.
-- If "unlimited" or "no limit", return "-1"
-- If not specified, return "${rules?.defaultValue || '0'}"
-- Return just the number, no text`;
-                break;
-            case standardization_types_1.ValueType.PERCENTAGE:
-                prompt += `Return ONLY a numeric percentage value (without % symbol).
-
-- Extract the percentage from the text
-- If "100%" return "100"
-- If "no co-pay", return "100" (meaning 100% covered)
-- If not specified, return "${rules?.defaultValue || '0'}"`;
-                break;
-            case standardization_types_1.ValueType.CURRENCY:
-                prompt += `Return ONLY a numeric value in Lakhs (Indian currency).
-
-- Convert Crores to Lakhs (1 Cr = 100 Lakhs)
-- Convert thousands to Lakhs (divide by 100)
-- If "unlimited", return "-1"
-- Return just the number, no currency symbols`;
-                break;
-            default:
-                prompt += `Return a clean, standardized version of the value.`;
-        }
-        if (rules?.mappings) {
-            prompt += `\n\nKnown mappings for guidance:\n`;
-            for (const [key, value] of Object.entries(rules.mappings)) {
-                prompt += `- "${key}" -> "${value}"\n`;
-            }
-        }
-        prompt += `\n\nIMPORTANT: Return ONLY the standardized value, nothing else. No explanations, no quotes unless part of the value.`;
+        prompt += `Return ONLY the standardized value.`;
         return prompt;
     }
+    mockExtraction(features) {
+        return features.map((f) => ({
+            featureId: f.id,
+            featureName: f.name,
+            extractedValue: `[Mock] ${f.name}`,
+            confidence: 'low',
+        }));
+    }
     mockStandardization(extractedValue, valueType, rules) {
-        const lowerValue = extractedValue.toLowerCase();
-        switch (valueType) {
-            case standardization_types_1.ValueType.BOOLEAN:
-                if (lowerValue.includes('yes') || lowerValue.includes('covered')) {
-                    return 'COVERED';
-                }
-                if (lowerValue.includes('no') || lowerValue.includes('not')) {
-                    return 'NOT_COVERED';
-                }
-                return 'NOT_SPECIFIED';
-            case standardization_types_1.ValueType.ENUM:
-                if (rules?.allowedValues?.length) {
-                    return rules.allowedValues[0];
-                }
-                return 'NOT_SPECIFIED';
-            case standardization_types_1.ValueType.NUMERIC:
-            case standardization_types_1.ValueType.PERCENTAGE:
-                const numMatch = extractedValue.match(/\d+/);
-                return numMatch ? numMatch[0] : '0';
-            case standardization_types_1.ValueType.CURRENCY:
-                return '0';
-            default:
-                return extractedValue;
-        }
+        return extractedValue || rules?.defaultValue?.toString() || 'NOT_SPECIFIED';
     }
 };
 exports.GeminiService = GeminiService;

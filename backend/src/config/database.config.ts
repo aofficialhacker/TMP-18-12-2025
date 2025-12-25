@@ -8,6 +8,6 @@ export const databaseConfig = (): TypeOrmModuleOptions => ({
   password: process.env.DB_PASSWORD || 'Helloworld@11',
   database: process.env.DB_DATABASE || 'testmypolicy2',
   entities: [__dirname + '/../entities/*.entity{.ts,.js}'],
-  synchronize: true, // Set to false in production
+  synchronize: false, // Set to false in production
   logging: process.env.NODE_ENV === 'development',
 });

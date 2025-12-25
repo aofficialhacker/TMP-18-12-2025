@@ -66,7 +66,7 @@ __decorate([
     __metadata("design:type", Object)
 ], Feature.prototype, "standardizationRules", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'display_order', type: 'int', default: 0 }),
+    (0, typeorm_1.Column)({ name: 'display_order', type: 'int', default: 1 }),
     __metadata("design:type", Number)
 ], Feature.prototype, "displayOrder", void 0);
 __decorate([
@@ -86,6 +86,7 @@ __decorate([
     __metadata("design:type", Date)
 ], Feature.prototype, "updatedAt", void 0);
 exports.Feature = Feature = __decorate([
-    (0, typeorm_1.Entity)('features')
+    (0, typeorm_1.Entity)('features'),
+    (0, typeorm_1.Unique)(['displayOrder'])
 ], Feature);
 //# sourceMappingURL=feature.entity.js.map

@@ -6,26 +6,18 @@ export declare class FeaturesController {
     private readonly featuresService;
     constructor(featuresService: FeaturesService);
     findAll(categoryId?: string, includeInactive?: string): Promise<import("../../entities").Feature[]>;
-    previewOrderShift(categoryId: number, displayOrder: number, name: string): Promise<{
-        conflict: boolean;
-        current: {
-            displayOrder: number;
-            name: string;
-        }[];
-        proposed: {
-            displayOrder: number;
-            name: string;
-        }[];
-    }>;
     validateWeights(categoryId: number): Promise<{
-        valid: boolean;
-        total: number;
-        message: string;
+        categoryId: number;
+        totalWeight: number;
+        isValid: boolean;
     }>;
     getWeightsByCategory(categoryId: number): Promise<{
-        total: number;
-        valid: boolean;
-        features: import("../../entities").Feature[];
+        categoryId: number;
+        features: {
+            id: number;
+            name: string;
+            weightage: number;
+        }[];
     }>;
     findOne(id: number): Promise<import("../../entities").Feature>;
     create(createFeatureDto: CreateFeatureDto): Promise<import("../../entities").Feature>;

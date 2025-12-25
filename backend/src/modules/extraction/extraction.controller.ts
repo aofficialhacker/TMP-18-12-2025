@@ -11,10 +11,13 @@ import {
   UseInterceptors,
   UploadedFile,
   Request,
+  Res,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { Response, Request as ExpressRequest } from 'express';
+
 import { ExtractionService } from './extraction.service';
 import { VerifyExtractionDto } from './dto/verify.dto';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
@@ -23,6 +26,8 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 @UseGuards(JwtAuthGuard)
 export class ExtractionController {
   constructor(private readonly extractionService: ExtractionService) {}
+
+  /* ================= EXISTING ENDPOINTS (UNCHANGED) ================= */
 
   @Get('uploads')
   getAllUploads() {
@@ -50,9 +55,9 @@ export class ExtractionController {
       storage: diskStorage({
         destination: './uploads',
         filename: (req, file, callback) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-          const ext = extname(file.originalname);
-          callback(null, `brochure-${uniqueSuffix}${ext}`);
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
+          callback(null, `brochure-${uniqueSuffix}${extname(file.originalname)}`);
         },
       }),
       fileFilter: (req, file, callback) => {
@@ -62,20 +67,21 @@ export class ExtractionController {
           callback(null, true);
         }
       },
-      limits: {
-        fileSize: 10 * 1024 * 1024, // 10MB limit
-      },
+      limits: { fileSize: 10 * 1024 * 1024 },
     }),
   )
-  async uploadBrochure(
+  uploadBrochure(
     @UploadedFile() file: Express.Multer.File,
     @Request() req,
     @Query('companyId') companyId?: string,
     @Query('planId') planId?: string,
   ) {
-    const cId = companyId ? parseInt(companyId, 10) : undefined;
-    const pId = planId ? parseInt(planId, 10) : undefined;
-    return this.extractionService.uploadBrochure(file, req.user.id, cId, pId);
+    return this.extractionService.uploadBrochure(
+      file,
+      req.user.id,
+      companyId ? +companyId : undefined,
+      planId ? +planId : undefined,
+    );
   }
 
   @Post(':uploadId/process')
@@ -94,5 +100,59 @@ export class ExtractionController {
   @Delete(':uploadId')
   deleteUpload(@Param('uploadId', ParseIntPipe) uploadId: number) {
     return this.extractionService.deleteUpload(uploadId);
+  }
+
+  /* ================= STEP 4.4.x — FIXED SSE PROGRESS STREAM ================= */
+
+  @Get(':uploadId/progress')
+  async streamProgress(
+    @Param('uploadId', ParseIntPipe) uploadId: number,
+    @Res() res: Response,
+    @Request() req: ExpressRequest,
+  ) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    const send = (payload: any) => {
+      res.write(`data: ${JSON.stringify(payload)}\n\n`);
+    };
+
+    let lastProgress = -1;
+
+    const interval = setInterval(async () => {
+      try {
+        const upload = await this.extractionService.getUpload(uploadId);
+        const progress = upload.extractionProgress ?? 0;
+
+        // 🔹 Send only if progress actually changed
+        if (progress !== lastProgress) {
+          lastProgress = progress;
+          send({
+            progress,
+            status: upload.extractionStatus,
+          });
+        }
+
+        // 🔹 Close stream on terminal states
+        if (
+          upload.extractionStatus === 'completed' ||
+          upload.extractionStatus === 'failed'
+        ) {
+          clearInterval(interval);
+          res.end();
+        }
+      } catch {
+        clearInterval(interval);
+        res.end();
+      }
+    }, 1000);
+
+    // 🔹 Cleanup on client disconnect
+    req.on('close', () => {
+      clearInterval(interval);
+      res.end();
+    });
   }
 }

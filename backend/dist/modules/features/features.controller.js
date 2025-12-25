@@ -24,11 +24,8 @@ let FeaturesController = class FeaturesController {
         this.featuresService = featuresService;
     }
     findAll(categoryId, includeInactive) {
-        const catId = categoryId ? Number(categoryId) : undefined;
+        const catId = categoryId ? parseInt(categoryId, 10) : undefined;
         return this.featuresService.findAll(catId, includeInactive === 'true');
-    }
-    previewOrderShift(categoryId, displayOrder, name) {
-        return this.featuresService.previewOrderShift(categoryId, displayOrder, name);
     }
     validateWeights(categoryId) {
         return this.featuresService.validateWeightsForCategory(categoryId);
@@ -61,15 +58,6 @@ __decorate([
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], FeaturesController.prototype, "findAll", null);
-__decorate([
-    (0, common_1.Get)('preview-order-shift'),
-    __param(0, (0, common_1.Query)('categoryId', common_1.ParseIntPipe)),
-    __param(1, (0, common_1.Query)('displayOrder', common_1.ParseIntPipe)),
-    __param(2, (0, common_1.Query)('name')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Number, String]),
-    __metadata("design:returntype", void 0)
-], FeaturesController.prototype, "previewOrderShift", null);
 __decorate([
     (0, common_1.Get)('validate-weights/:categoryId'),
     __param(0, (0, common_1.Param)('categoryId', common_1.ParseIntPipe)),

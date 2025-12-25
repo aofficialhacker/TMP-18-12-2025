@@ -1,0 +1,66 @@
+.quote-comparison-page {
+  padding: 16px;
+}
+
+/* Page title */
+h2 {
+  margin-bottom: 16px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+/* Grid for 3 plan cards */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+/* Action buttons wrapper */
+.actions {
+  display: flex;
+  justify-content: center;
+  margin: 16px 0;
+}
+
+/* Compare button */
+.compare-btn {
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  background-color: #1976d2;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.compare-btn:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+/* Generate quote button */
+.quote-btn {
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  background-color: #2e7d32;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* Comparison table section */
+.comparison-section {
+  margin-top: 24px;
+}
+
+/* Responsive handling */
+@media (max-width: 1024px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

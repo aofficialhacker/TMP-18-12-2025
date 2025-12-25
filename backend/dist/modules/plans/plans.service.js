@@ -28,20 +28,33 @@ let PlansService = class PlansService {
         this.featureRepository = featureRepository;
     }
     async findAll(companyId, includeInactive = false) {
-        const where = includeInactive ? {} : { isActive: true };
-        if (companyId) {
-            where.companyId = companyId;
+        const qb = this.planRepository
+            .createQueryBuilder('plan')
+            .leftJoinAndSelect('plan.company', 'company')
+            .orderBy(`CASE 
+          WHEN plan.status = :uploadComplete THEN 0 
+          ELSE 1 
+        END`, 'ASC')
+            .addOrderBy('plan.updatedAt', 'DESC')
+            .addOrderBy('plan.createdAt', 'DESC')
+            .setParameter('uploadComplete', 'upload_complete');
+        if (!includeInactive) {
+            qb.where('plan.isActive = :active', { active: true });
         }
-        return this.planRepository.find({
-            where,
-            relations: ['company'],
-            order: { createdAt: 'DESC' },
-        });
+        if (companyId) {
+            qb.andWhere('plan.companyId = :companyId', { companyId });
+        }
+        return qb.getMany();
     }
     async findOne(id) {
         const plan = await this.planRepository.findOne({
             where: { id },
-            relations: ['company', 'featureValues', 'featureValues.feature', 'featureValues.feature.category'],
+            relations: [
+                'company',
+                'featureValues',
+                'featureValues.feature',
+                'featureValues.feature.category',
+            ],
         });
         if (!plan) {
             throw new common_1.NotFoundException(`Plan with ID ${id} not found`);
@@ -60,14 +73,6 @@ let PlansService = class PlansService {
     }
     async update(id, updatePlanDto) {
         const plan = await this.findOne(id);
-        if (updatePlanDto.companyId) {
-            const company = await this.companyRepository.findOne({
-                where: { id: updatePlanDto.companyId, isActive: true },
-            });
-            if (!company) {
-                throw new common_1.NotFoundException(`Company with ID ${updatePlanDto.companyId} not found or inactive`);
-            }
-        }
         Object.assign(plan, updatePlanDto);
         return this.planRepository.save(plan);
     }
@@ -76,6 +81,11 @@ let PlansService = class PlansService {
         plan.isActive = false;
         await this.planRepository.save(plan);
         return { message: `Plan ${plan.name} has been deactivated` };
+    }
+    async setActive(id, isActive) {
+        const plan = await this.findOne(id);
+        plan.isActive = isActive;
+        return this.planRepository.save(plan);
     }
     async updateFeatureValues(planId, updateDto) {
         const plan = await this.findOne(planId);
@@ -119,7 +129,12 @@ let PlansService = class PlansService {
         return this.planFeatureValueRepository.find({
             where: { planId },
             relations: ['feature', 'feature.category'],
-            order: { feature: { category: { displayOrder: 'ASC' }, displayOrder: 'ASC' } },
+            order: {
+                feature: {
+                    category: { displayOrder: 'ASC' },
+                    displayOrder: 'ASC',
+                },
+            },
         });
     }
     async publish(id) {
@@ -131,6 +146,78 @@ let PlansService = class PlansService {
         const plan = await this.findOne(id);
         plan.status = status;
         return this.planRepository.save(plan);
+    }
+    async comparePlans(body) {
+        const { client, selectedPlanIds, selectedPlans } = body;
+        const planInputMap = {};
+        if (Array.isArray(selectedPlans)) {
+            for (const p of selectedPlans) {
+                if (p.planId) {
+                    planInputMap[Number(p.planId)] = {
+                        premium: Number(p.premium),
+                        sumInsured: Number(p.sumInsured),
+                    };
+                }
+            }
+        }
+        const plans = await this.planRepository
+            .createQueryBuilder('plan')
+            .leftJoinAndSelect('plan.company', 'company')
+            .where('plan.id IN (:...planIds)', { planIds: selectedPlanIds })
+            .andWhere('plan.isActive = true')
+            .getMany();
+        if (!plans.length) {
+            throw new common_1.NotFoundException('No active plans found for comparison');
+        }
+        const features = await this.featureRepository
+            .createQueryBuilder('feature')
+            .select(['feature.id', 'feature.name', 'feature.description'])
+            .where('feature.isActive = true')
+            .orderBy('feature.displayOrder', 'ASC')
+            .getMany();
+        const rawFeatureValues = await this.planFeatureValueRepository
+            .createQueryBuilder('pfv')
+            .select(['pfv.planId', 'pfv.featureId', 'pfv.verifiedValue'])
+            .where('pfv.planId IN (:...planIds)', { planIds: selectedPlanIds })
+            .getMany();
+        const featureValues = {};
+        for (const fv of rawFeatureValues) {
+            if (!featureValues[fv.featureId]) {
+                featureValues[fv.featureId] = {};
+            }
+            featureValues[fv.featureId][fv.planId] = fv.verifiedValue;
+        }
+        const planSummaries = plans.map(plan => ({
+            planId: plan.id,
+            companyName: plan.company.name,
+            companyLogo: plan.company.logoUrl,
+            planName: plan.name,
+            sumInsured: planInputMap[plan.id]?.sumInsured ?? null,
+            premium: planInputMap[plan.id]?.premium ?? null,
+        }));
+        return {
+            clientDetails: {
+                name: client?.name,
+                dob: client?.dob,
+                age: client?.age,
+                preExistingDisease: client?.preExistingDisease ? 'Yes' : 'No',
+                planType: client?.planType,
+                policyType: client?.policyType,
+            },
+            plans: planSummaries,
+            features,
+            featureValues,
+            terms: {
+                text: [
+                    'Quote valid for 24 hours.',
+                    'Subject to final approval and documentation.',
+                    'Actual terms may vary based on eligibility.',
+                ],
+                irDAI: 'Direct (Life & General)',
+                validity: '07.08.2024 – 06.08.2027',
+                ibaiMembershipNo: '33985',
+            },
+        };
     }
 };
 exports.PlansService = PlansService;

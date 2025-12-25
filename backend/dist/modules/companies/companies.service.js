@@ -22,11 +22,14 @@ let CompaniesService = class CompaniesService {
         this.companyRepository = companyRepository;
     }
     async findAll(includeInactive = false) {
-        const where = includeInactive ? {} : { isActive: true };
-        return this.companyRepository.find({
-            where,
-            order: { name: 'ASC' },
-        });
+        const qb = this.companyRepository
+            .createQueryBuilder('company')
+            .loadRelationCountAndMap('company.activePlansCount', 'company.plans', 'plan', (qb) => qb.where('plan.isActive = :active', { active: true }))
+            .orderBy('company.name', 'ASC');
+        if (!includeInactive) {
+            qb.where('company.isActive = :active', { active: true });
+        }
+        return qb.getMany();
     }
     async findOne(id) {
         const company = await this.companyRepository.findOne({
@@ -39,13 +42,22 @@ let CompaniesService = class CompaniesService {
         return company;
     }
     async create(createCompanyDto) {
-        const company = this.companyRepository.create(createCompanyDto);
+        const company = this.companyRepository.create({
+            ...createCompanyDto,
+            companyUrl: createCompanyDto.companyUrl ?? null,
+        });
         return this.companyRepository.save(company);
     }
     async update(id, updateCompanyDto) {
         const company = await this.findOne(id);
-        Object.assign(company, updateCompanyDto);
-        return this.companyRepository.save(company);
+        const updatedCompany = {
+            ...company,
+            ...updateCompanyDto,
+            companyUrl: updateCompanyDto.companyUrl !== undefined
+                ? updateCompanyDto.companyUrl ?? null
+                : company.companyUrl,
+        };
+        return this.companyRepository.save(updatedCompany);
     }
     async remove(id) {
         const company = await this.findOne(id);

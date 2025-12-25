@@ -11,13 +11,11 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateFeatureDto = void 0;
 const class_validator_1 = require("class-validator");
-const class_transformer_1 = require("class-transformer");
 const standardization_types_1 = require("../../extraction/types/standardization.types");
 class CreateFeatureDto {
 }
 exports.CreateFeatureDto = CreateFeatureDto;
 __decorate([
-    (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.IsInt)(),
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", Number)
@@ -33,7 +31,6 @@ __decorate([
     __metadata("design:type", String)
 ], CreateFeatureDto.prototype, "description", void 0);
 __decorate([
-    (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.IsInt)(),
     (0, class_validator_1.Min)(0),
     (0, class_validator_1.Max)(100),
@@ -61,7 +58,6 @@ __decorate([
     __metadata("design:type", Object)
 ], CreateFeatureDto.prototype, "standardizationRules", void 0);
 __decorate([
-    (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.IsInt)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)

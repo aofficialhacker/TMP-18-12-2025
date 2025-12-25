@@ -17,6 +17,7 @@ export declare class BrochureUpload {
     storedFilename: string;
     filePath: string;
     extractionStatus: ExtractionStatus;
+    extractionProgress: number;
     extractionResult: any;
     uploadedById: number;
     uploadedBy: AdminUser;

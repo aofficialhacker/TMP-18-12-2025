@@ -26,7 +26,10 @@ let CategoriesService = class CategoriesService {
         return this.categoryRepository.find({
             where,
             relations: ['features'],
-            order: { displayOrder: 'ASC', name: 'ASC' },
+            order: {
+                displayOrder: 'ASC',
+                name: 'ASC',
+            },
         });
     }
     async findOne(id) {
@@ -52,7 +55,9 @@ let CategoriesService = class CategoriesService {
         const category = await this.findOne(id);
         category.isActive = false;
         await this.categoryRepository.save(category);
-        return { message: `Category ${category.name} has been deactivated` };
+        return {
+            message: `Category ${category.name} has been deactivated`,
+        };
     }
     async updateWeights(updateWeightsDto) {
         const { categories } = updateWeightsDto;
@@ -62,14 +67,17 @@ let CategoriesService = class CategoriesService {
         }
         const categoryIds = categories.map((c) => c.id);
         const existingCategories = await this.categoryRepository.find({
-            where: categoryIds.map((id) => ({ id, isActive: true })),
+            where: {
+                id: (0, typeorm_2.In)(categoryIds),
+                isActive: true,
+            },
         });
         if (existingCategories.length !== categoryIds.length) {
             throw new common_1.BadRequestException('One or more categories not found or inactive');
         }
-        for (const catWeight of categories) {
-            await this.categoryRepository.update(catWeight.id, {
-                weightage: catWeight.weightage,
+        for (const cat of categories) {
+            await this.categoryRepository.update(cat.id, {
+                weightage: cat.weightage,
             });
         }
         return this.findAll();

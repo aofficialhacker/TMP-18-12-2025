@@ -7,12 +7,14 @@ import {
   ManyToOne,
   OneToMany,
   JoinColumn,
+  Unique,
 } from 'typeorm';
 import { Category } from './category.entity';
 import { PlanFeatureValue } from './plan-feature-value.entity';
 import { ValueType, StandardizationRules } from '../modules/extraction/types/standardization.types';
 
 @Entity('features')
+@Unique(['displayOrder'])
 export class Feature {
   @PrimaryGeneratedColumn()
   id: number;
@@ -52,7 +54,7 @@ export class Feature {
   @Column({ name: 'standardization_rules', type: 'json', nullable: true })
   standardizationRules: StandardizationRules;
 
-  @Column({ name: 'display_order', type: 'int', default: 0 })
+  @Column({ name: 'display_order', type: 'int', default: 1 })
   displayOrder: number;
 
   @Column({ name: 'is_active', default: true })

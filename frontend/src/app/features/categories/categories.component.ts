@@ -14,9 +14,22 @@ import { ApiService } from '../../core/services/api.service';
         <button class="btn btn-primary" (click)="openForm()">+ Add Category</button>
       </div>
 
-      <div class="weight-info" [class.valid]="weightsValid" [class.invalid]="!weightsValid">
+      <div
+        class="weight-info"
+        [class.valid]="weightsValid"
+        [class.partial]="weightsPartial && !weightsValid"
+        [class.invalid]="!weightsValid && !weightsPartial"
+      >
         <span>Total Weight: {{ totalWeight }}% / 100%</span>
-        <span>{{ weightsValid ? 'Valid' : 'Weights must sum to 100%' }}</span>
+        <span>
+          {{
+            weightsValid
+              ? 'Valid'
+              : weightsPartial
+              ? 'Weight space available'
+              : 'Weights must sum to 100%'
+          }}
+        </span>
       </div>
 
       <div class="card">
@@ -27,10 +40,6 @@ import { ApiService } from '../../core/services/api.service';
               <th>Description</th>
               <th>Weightage</th>
               <th>Features</th>
-
-              <!-- ORDER COLUMN DISABLED -->
-              <!-- <th>Order</th> -->
-
               <th>Status</th>
               <th>Actions</th>
             </tr>
@@ -42,9 +51,6 @@ import { ApiService } from '../../core/services/api.service';
               <td>{{ category.description || '-' }}</td>
               <td>{{ category.weightage }}%</td>
               <td>{{ category.features?.length || 0 }}</td>
-
-              <!-- ORDER CELL DISABLED -->
-              <!-- <td>{{ category.displayOrder }}</td> -->
 
               <td>
                 <span
@@ -58,7 +64,6 @@ import { ApiService } from '../../core/services/api.service';
 
               <td class="actions">
                 <button class="btn-icon" (click)="editCategory(category)">✏️</button>
-
                 <label class="switch">
                   <input
                     type="checkbox"
@@ -73,7 +78,6 @@ import { ApiService } from '../../core/services/api.service';
         </table>
       </div>
 
-      <!-- ADD / EDIT CATEGORY MODAL -->
       <div class="modal-overlay" *ngIf="showForm">
         <div class="modal">
           <h3>{{ editingCategory ? 'Edit Category' : 'Add Category' }}</h3>
@@ -101,22 +105,8 @@ import { ApiService } from '../../core/services/api.service';
               />
             </div>
 
-            <!-- DISPLAY ORDER FIELD DISABLED -->
-            <!--
-            <div class="form-group">
-              <label>Display Order</label>
-              <input
-                type="number"
-                [(ngModel)]="formData.displayOrder"
-                name="displayOrder"
-              />
-            </div>
-            -->
-
             <div class="form-actions">
-              <button type="button" class="btn btn-secondary" (click)="closeForm()">
-                Cancel
-              </button>
+              <button type="button" class="btn btn-secondary" (click)="closeForm()">Cancel</button>
               <button type="submit" class="btn btn-primary">
                 {{ editingCategory ? 'Update' : 'Create' }}
               </button>
@@ -159,6 +149,7 @@ import { ApiService } from '../../core/services/api.service';
     }
     .weight-info.valid { background: #e8f5e9; color: #2e7d32; }
     .weight-info.invalid { background: #ffebee; color: #c62828; }
+    .weight-info.partial { background: #fff8e1; color: #f57f17; }
 
     /* ================= TABLE ================= */
     .card { background: #fff; border-radius: 8px; padding: 20px; }
@@ -272,12 +263,12 @@ export class CategoriesComponent implements OnInit {
   formData: any = {
     name: '',
     description: '',
-    weightage: 0,
-    // displayOrder: null // ORDER DISABLED
+    weightage: 0
   };
 
   totalWeight = 0;
   weightsValid = false;
+  weightsPartial = false;
 
   ngOnInit() {
     this.loadCategories();
@@ -294,7 +285,9 @@ export class CategoriesComponent implements OnInit {
     this.totalWeight = this.categories
       .filter(c => c.isActive)
       .reduce((sum, c) => sum + c.weightage, 0);
+
     this.weightsValid = this.totalWeight === 100;
+    this.weightsPartial = this.totalWeight < 100;
   }
 
   getActiveWeightExcluding(id?: number): number {
@@ -334,7 +327,6 @@ export class CategoriesComponent implements OnInit {
       name: category.name,
       description: category.description,
       weightage: category.weightage
-      // displayOrder: category.displayOrder // ORDER DISABLED
     };
     this.showForm = true;
   }
@@ -359,7 +351,6 @@ export class CategoriesComponent implements OnInit {
       description: this.formData.description,
       weightage: editedWeight,
       isActive
-      // displayOrder: this.formData.displayOrder // ORDER DISABLED
     };
 
     const req = this.editingCategory

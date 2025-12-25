@@ -60,6 +60,10 @@ export class BrochureUpload {
   })
   extractionStatus: ExtractionStatus;
 
+  /* ✅ NEW: REAL EXTRACTION PROGRESS (0–100) */
+  @Column({ name: 'extraction_progress', type: 'int', default: 0 })
+  extractionProgress: number;
+
   @Column({ name: 'extraction_result', type: 'json', nullable: true })
   extractionResult: any;
 

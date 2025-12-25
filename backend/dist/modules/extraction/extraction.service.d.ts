@@ -16,17 +16,29 @@ export declare class ExtractionService {
     private readonly geminiService;
     private readonly standardizationService;
     private readonly logger;
+    private readonly progressEmitter;
     constructor(brochureUploadRepository: Repository<BrochureUpload>, planRepository: Repository<Plan>, planFeatureValueRepository: Repository<PlanFeatureValue>, featureRepository: Repository<Feature>, companyRepository: Repository<Company>, geminiService: GeminiService, standardizationService: StandardizationService);
+    onProgress(uploadId: number, listener: any): void;
+    offProgress(uploadId: number, listener: any): void;
+    private updateProgress;
     uploadBrochure(file: Express.Multer.File, uploadedById: number, companyId?: number, planId?: number): Promise<BrochureUpload>;
     getUpload(uploadId: number): Promise<BrochureUpload>;
+    getAllUploads(): Promise<BrochureUpload[]>;
     processExtraction(uploadId: number): Promise<BrochureUpload>;
     getExtractionStatus(uploadId: number): Promise<{
+        uploadId: number;
         status: ExtractionStatus;
-        message: string;
+        progress: number;
     }>;
-    getExtractionResults(uploadId: number): Promise<any>;
+    getExtractionResults(uploadId: number): Promise<{
+        uploadId: number;
+        originalFilename: string;
+        extractedAt: any;
+        company: Company;
+        plan: Plan;
+        features: any;
+    }>;
     verifyAndSave(uploadId: number, verifyDto: VerifyExtractionDto): Promise<Plan>;
-    getAllUploads(): Promise<BrochureUpload[]>;
     deleteUpload(uploadId: number): Promise<{
         message: string;
     }>;

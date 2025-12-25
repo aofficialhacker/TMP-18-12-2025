@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Feature } from '../../entities/feature.entity';
@@ -20,207 +16,134 @@ export class FeaturesService {
     private readonly categoryRepository: Repository<Category>,
   ) {}
 
-  /* ======================================================
-     FETCH
-     ====================================================== */
+  /* ================= READ ================= */
 
-  async findAll(
-    categoryId?: number,
-    includeInactive = false,
-  ): Promise<Feature[]> {
+  async findAll(categoryId?: number, includeInactive = false): Promise<Feature[]> {
     const where: any = includeInactive ? {} : { isActive: true };
-    if (categoryId !== undefined) {
-      where.categoryId = categoryId;
-    }
+    if (categoryId) where.categoryId = categoryId;
 
     return this.featureRepository.find({
       where,
       relations: ['category'],
-      order: { displayOrder: 'ASC' }, // GLOBAL ORDER
+      order: { displayOrder: 'ASC', name: 'ASC' },
     });
   }
 
   async findOne(id: number): Promise<Feature> {
-    const feature = await this.featureRepository.findOne({ where: { id } });
+    const feature = await this.featureRepository.findOne({
+      where: { id },
+      relations: ['category'],
+    });
+
     if (!feature) {
-      throw new NotFoundException(`Feature ${id} not found`);
+      throw new NotFoundException(`Feature with ID ${id} not found`);
     }
+
     return feature;
   }
 
-  /* ======================================================
-     PREVIEW CURRENT vs PROPOSED DISPLAY ORDER (GLOBAL)
-     ====================================================== */
+  /* ================= CREATE ================= */
 
-  async previewOrderShift(
-    _categoryId: number, // kept for API compatibility
-    displayOrder: number,
-    newFeatureName: string,
-  ) {
-    const features = await this.featureRepository.find({
-      where: { isActive: true },
-      order: { displayOrder: 'ASC' },
+  async create(dto: CreateFeatureDto): Promise<Feature> {
+    const category = await this.categoryRepository.findOne({
+      where: { id: dto.categoryId, isActive: true },
     });
 
-    const current = features.map((f, index) => ({
-      displayOrder: index + 1,
-      name: f.name,
-    }));
-
-    const insertAt = Math.min(displayOrder, current.length + 1);
-    const conflict = insertAt <= current.length;
-
-    const proposed: { displayOrder: number; name: string }[] = [];
-    let order = 1;
-
-    for (let i = 0; i < current.length; i++) {
-      if (order === insertAt) {
-        proposed.push({
-          displayOrder: order++,
-          name: newFeatureName,
-        });
-      }
-
-      proposed.push({
-        displayOrder: order++,
-        name: current[i].name,
-      });
+    if (!category) {
+      throw new NotFoundException(
+        `Category with ID ${dto.categoryId} not found or inactive`,
+      );
     }
 
-    if (insertAt > current.length) {
-      proposed.push({
-        displayOrder: order,
-        name: newFeatureName,
-      });
+    // ✅ displayOrder rules
+    let displayOrder =
+      dto.displayOrder && dto.displayOrder >= 1 ? dto.displayOrder : undefined;
+
+    if (!displayOrder) {
+      const max = await this.getMaxDisplayOrder();
+      displayOrder = max + 1;
+    } else {
+      const existing = await this.getFeatureAtDisplayOrder(displayOrder);
+      if (existing) {
+        await this.shiftDisplayOrdersUp(displayOrder);
+      }
     }
 
-    return {
-      conflict,
-      current,
-      proposed,
-    };
-  }
-
-  /* ======================================================
-     CREATE FEATURE (GLOBAL DISPLAY ORDER)
-     ====================================================== */
-
-  async create(createFeatureDto: CreateFeatureDto): Promise<Feature> {
-    return this.featureRepository.manager.transaction(async manager => {
-      const category = await manager.findOne(Category, {
-        where: { id: createFeatureDto.categoryId, isActive: true },
-      });
-
-      if (!category) {
-        throw new NotFoundException('Category not found');
-      }
-
-      // NORMALIZE DISPLAY ORDER
-      if (
-        createFeatureDto.displayOrder == null ||
-        createFeatureDto.displayOrder < 1
-      ) {
-        const max = await manager
-          .createQueryBuilder(Feature, 'f')
-          .select('MAX(f.displayOrder)', 'max')
-          .getRawOne();
-
-        createFeatureDto.displayOrder = (max?.max || 0) + 1;
-      }
-
-      // 🔥 GLOBAL SHIFT (NO CATEGORY FILTER)
-      await manager
-        .createQueryBuilder()
-        .update(Feature)
-        .set({ displayOrder: () => 'display_order + 1' })
-        .where('display_order >= :displayOrder', {
-          displayOrder: createFeatureDto.displayOrder,
-        })
-        .execute();
-
-      const feature = manager.create(Feature, {
-        ...createFeatureDto,
-        extractionKeywords: createFeatureDto.extractionKeywords
-          ? JSON.stringify(createFeatureDto.extractionKeywords)
-          : null,
-      });
-
-      return manager.save(feature);
+    const feature = this.featureRepository.create({
+      ...dto,
+      displayOrder,
+      extractionKeywords: dto.extractionKeywords
+        ? JSON.stringify(dto.extractionKeywords)
+        : null,
     });
+
+    return this.featureRepository.save(feature);
   }
 
-  /* ======================================================
-     UPDATE FEATURE (GLOBAL DISPLAY ORDER)
-     ====================================================== */
+  /* ================= UPDATE ================= */
 
-  async update(id: number, updateFeatureDto: UpdateFeatureDto) {
-    return this.featureRepository.manager.transaction(async manager => {
-      const feature = await manager.findOne(Feature, { where: { id } });
-      if (!feature) {
-        throw new NotFoundException('Feature not found');
-      }
+  async update(id: number, dto: UpdateFeatureDto): Promise<Feature> {
+    const feature = await this.findOne(id);
 
+    if (dto.displayOrder !== undefined && dto.displayOrder < 1) {
+      throw new BadRequestException('Display order must start from 1');
+    }
+
+    if (
+      dto.displayOrder !== undefined &&
+      dto.displayOrder !== feature.displayOrder
+    ) {
       const oldOrder = feature.displayOrder;
-      const newOrder =
-        updateFeatureDto.displayOrder != null
-          ? updateFeatureDto.displayOrder
-          : oldOrder;
+      const newOrder = dto.displayOrder;
 
-      if (newOrder !== oldOrder) {
-        if (newOrder < oldOrder) {
-          // MOVE UP
-          await manager
-            .createQueryBuilder()
-            .update(Feature)
-            .set({ displayOrder: () => 'display_order + 1' })
-            .where('display_order >= :newOrder', { newOrder })
-            .andWhere('display_order < :oldOrder', { oldOrder })
-            .execute();
-        } else {
-          // MOVE DOWN
-          await manager
-            .createQueryBuilder()
-            .update(Feature)
-            .set({ displayOrder: () => 'display_order - 1' })
-            .where('display_order > :oldOrder', { oldOrder })
-            .andWhere('display_order <= :newOrder', { newOrder })
-            .execute();
-        }
-
-        feature.displayOrder = newOrder;
+      const existing = await this.getFeatureAtDisplayOrder(newOrder!, id);
+      if (existing) {
+        await this.shiftDisplayOrdersUp(newOrder!, id);
       }
 
-      Object.assign(feature, {
-        ...updateFeatureDto,
-        extractionKeywords: updateFeatureDto.extractionKeywords
-          ? JSON.stringify(updateFeatureDto.extractionKeywords)
-          : feature.extractionKeywords,
-      });
+      await this.shiftDisplayOrdersDown(oldOrder);
+    }
 
-      return manager.save(feature);
-    });
+    const updateData: any = { ...dto };
+
+    if (dto.extractionKeywords) {
+      updateData.extractionKeywords = JSON.stringify(dto.extractionKeywords);
+    }
+
+    Object.assign(feature, updateData);
+    return this.featureRepository.save(feature);
   }
 
-  /* ======================================================
-     DELETE (SOFT)
-     ====================================================== */
+  /* ================= DELETE ================= */
 
-  async remove(id: number) {
+  async remove(id: number): Promise<{ message: string }> {
     const feature = await this.findOne(id);
     feature.isActive = false;
     await this.featureRepository.save(feature);
-    return { message: 'Feature deactivated' };
+
+    return { message: `Feature "${feature.name}" has been deactivated` };
   }
 
-  /* ======================================================
-     WEIGHTS
-     ====================================================== */
+  /* ================= WEIGHTS ================= */
 
-  async updateWeights(categoryId: number, dto: UpdateFeatureWeightsDto) {
-    const total = dto.features.reduce((sum, f) => sum + f.weightage, 0);
+  async updateWeights(
+    categoryId: number,
+    dto: UpdateFeatureWeightsDto,
+  ): Promise<Feature[]> {
+    const category = await this.categoryRepository.findOne({
+      where: { id: categoryId, isActive: true },
+    });
+
+    if (!category) {
+      throw new BadRequestException('Category not found or inactive');
+    }
+
+    const total = dto.features.reduce((s, f) => s + f.weightage, 0);
 
     if (total !== 100) {
-      throw new BadRequestException('Weights must sum to 100');
+      throw new BadRequestException(
+        `Feature weights must sum to 100. Current total: ${total}`,
+      );
     }
 
     for (const f of dto.features) {
@@ -232,27 +155,117 @@ export class FeaturesService {
     return this.findAll(categoryId);
   }
 
-  async getWeightsByCategoryId(categoryId: number) {
+  /* ======================================================
+     ✅ METHODS REQUIRED BY features.controller.ts
+     ====================================================== */
+
+  async validateWeightsForCategory(categoryId: number): Promise<{
+    categoryId: number;
+    totalWeight: number;
+    isValid: boolean;
+  }> {
+    const category = await this.categoryRepository.findOne({
+      where: { id: categoryId, isActive: true },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Category not found or inactive');
+    }
+
+    const features = await this.featureRepository.find({
+      where: { categoryId, isActive: true },
+    });
+
+    const totalWeight = features.reduce(
+      (sum, f) => sum + f.weightage,
+      0,
+    );
+
+    return {
+      categoryId,
+      totalWeight,
+      isValid: totalWeight === 100,
+    };
+  }
+
+  async getWeightsByCategoryId(categoryId: number): Promise<{
+    categoryId: number;
+    features: { id: number; name: string; weightage: number }[];
+  }> {
     const features = await this.featureRepository.find({
       where: { categoryId, isActive: true },
       order: { displayOrder: 'ASC' },
     });
 
-    const total = features.reduce((sum, f) => sum + f.weightage, 0);
-
     return {
-      total,
-      valid: total === 100,
-      features,
+      categoryId,
+      features: features.map(f => ({
+        id: f.id,
+        name: f.name,
+        weightage: f.weightage,
+      })),
     };
   }
 
-  async validateWeightsForCategory(categoryId: number) {
-    const res = await this.getWeightsByCategoryId(categoryId);
-    return {
-      valid: res.valid,
-      total: res.total,
-      message: res.valid ? 'Valid' : 'Invalid',
-    };
+  /* ================= HELPERS ================= */
+
+  private async getMaxDisplayOrder(): Promise<number> {
+    const r = await this.featureRepository
+      .createQueryBuilder('f')
+      .select('MAX(f.displayOrder)', 'max')
+      .getRawOne();
+
+    return r?.max || 0;
+  }
+
+  private async shiftDisplayOrdersUp(
+    fromOrder: number,
+    excludeId?: number,
+  ): Promise<void> {
+    const qb = this.featureRepository
+      .createQueryBuilder('f')
+      .where('f.displayOrder >= :fromOrder', { fromOrder })
+      .orderBy('f.displayOrder', 'DESC');
+
+    if (excludeId) {
+      qb.andWhere('f.id != :excludeId', { excludeId });
+    }
+
+    const rows = await qb.getMany();
+
+    for (const r of rows) {
+      await this.featureRepository.update(r.id, {
+        displayOrder: r.displayOrder + 1,
+      });
+    }
+  }
+
+  private async shiftDisplayOrdersDown(fromOrder: number): Promise<void> {
+    const rows = await this.featureRepository
+      .createQueryBuilder('f')
+      .where('f.displayOrder > :fromOrder', { fromOrder })
+      .orderBy('f.displayOrder', 'ASC')
+      .getMany();
+
+    for (const r of rows) {
+      await this.featureRepository.update(r.id, {
+        displayOrder: r.displayOrder - 1,
+      });
+    }
+  }
+
+  private async getFeatureAtDisplayOrder(
+    order: number,
+    excludeId?: number,
+  ): Promise<Feature | null> {
+    const qb = this.featureRepository
+      .createQueryBuilder('f')
+      .where('f.displayOrder = :order', { order });
+
+    if (excludeId) {
+      qb.andWhere('f.id != :excludeId', { excludeId });
+    }
+
+    return qb.getOne();
   }
 }

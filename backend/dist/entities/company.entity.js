@@ -29,6 +29,10 @@ __decorate([
     __metadata("design:type", String)
 ], Company.prototype, "logoUrl", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'company_url', type: 'varchar', length: 255, nullable: true }),
+    __metadata("design:type", String)
+], Company.prototype, "companyUrl", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'text', nullable: true }),
     __metadata("design:type", String)
 ], Company.prototype, "description", void 0);

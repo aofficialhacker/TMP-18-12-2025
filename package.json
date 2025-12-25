@@ -1,0 +1,9 @@
+{
+  "devDependencies": {
+    "@types/jasmine": "^5.1.13"
+  },
+  "dependencies": {
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.4"
+  }
+}

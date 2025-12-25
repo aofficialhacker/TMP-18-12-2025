@@ -79,10 +79,6 @@ export class ApiService {
 
   /* ===================== Features ===================== */
 
-  /**
-   * 🔥 PREVIEW DISPLAY ORDER SHIFT
-   * Sends categoryId + displayOrder + feature name
-   */
   previewFeatureOrder(
     categoryId: number,
     displayOrder: number,
@@ -184,6 +180,13 @@ export class ApiService {
     return this.http.put<any>(
       `${this.apiUrl}/plans/${planId}/feature-values`,
       { featureValues },
+    );
+  }
+
+  setPlanActive(planId: number, isActive: boolean): Observable<any> {
+    return this.http.put<any>(
+      `${this.apiUrl}/plans/${planId}/active`,
+      { isActive },
     );
   }
 

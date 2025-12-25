@@ -14,6 +14,9 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CompaniesController = void 0;
 const common_1 = require("@nestjs/common");
+const platform_express_1 = require("@nestjs/platform-express");
+const multer_1 = require("multer");
+const path_1 = require("path");
 const companies_service_1 = require("./companies.service");
 const create_company_dto_1 = require("./dto/create-company.dto");
 const update_company_dto_1 = require("./dto/update-company.dto");
@@ -28,11 +31,17 @@ let CompaniesController = class CompaniesController {
     findOne(id) {
         return this.companiesService.findOne(id);
     }
-    create(createCompanyDto) {
-        return this.companiesService.create(createCompanyDto);
+    create(file, createCompanyDto) {
+        return this.companiesService.create({
+            ...createCompanyDto,
+            logoUrl: file ? `/uploads/companies/${file.filename}` : createCompanyDto.logoUrl,
+        });
     }
-    update(id, updateCompanyDto) {
-        return this.companiesService.update(id, updateCompanyDto);
+    update(id, file, updateCompanyDto) {
+        return this.companiesService.update(id, {
+            ...updateCompanyDto,
+            ...(file && { logoUrl: `/uploads/companies/${file.filename}` }),
+        });
     }
     remove(id) {
         return this.companiesService.remove(id);
@@ -55,17 +64,49 @@ __decorate([
 ], CompaniesController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Post)(),
-    __param(0, (0, common_1.Body)()),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('logo', {
+        storage: (0, multer_1.diskStorage)({
+            destination: './uploads/companies',
+            filename: (_req, file, cb) => {
+                const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1e9);
+                cb(null, uniqueName + (0, path_1.extname)(file.originalname));
+            },
+        }),
+        fileFilter: (_req, file, cb) => {
+            if (!file.mimetype.match(/\/(jpg|jpeg|png|svg\+xml)$/)) {
+                return cb(new Error('Only image files are allowed'), false);
+            }
+            cb(null, true);
+        },
+    })),
+    __param(0, (0, common_1.UploadedFile)()),
+    __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [create_company_dto_1.CreateCompanyDto]),
+    __metadata("design:paramtypes", [Object, create_company_dto_1.CreateCompanyDto]),
     __metadata("design:returntype", void 0)
 ], CompaniesController.prototype, "create", null);
 __decorate([
     (0, common_1.Put)(':id'),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('logo', {
+        storage: (0, multer_1.diskStorage)({
+            destination: './uploads/companies',
+            filename: (_req, file, cb) => {
+                const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1e9);
+                cb(null, uniqueName + (0, path_1.extname)(file.originalname));
+            },
+        }),
+        fileFilter: (_req, file, cb) => {
+            if (!file.mimetype.match(/\/(jpg|jpeg|png|svg\+xml)$/)) {
+                return cb(new Error('Only image files are allowed'), false);
+            }
+            cb(null, true);
+        },
+    })),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
-    __param(1, (0, common_1.Body)()),
+    __param(1, (0, common_1.UploadedFile)()),
+    __param(2, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, update_company_dto_1.UpdateCompanyDto]),
+    __metadata("design:paramtypes", [Number, Object, update_company_dto_1.UpdateCompanyDto]),
     __metadata("design:returntype", void 0)
 ], CompaniesController.prototype, "update", null);
 __decorate([

@@ -2,32 +2,48 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { join } from 'path';
+import { existsSync, mkdirSync } from 'fs';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // Enable CORS for Angular frontend
+  // 🔴 MUST COME FIRST
+  app.setGlobalPrefix('api');
+
+  // Ensure uploads directory exists
+  const uploadPath = join(process.cwd(), 'uploads/companies');
+  if (!existsSync(uploadPath)) {
+    mkdirSync(uploadPath, { recursive: true });
+  }
+
+  // ✅ Static assets under /api/uploads
+  app.useStaticAssets(join(process.cwd(), 'uploads'), {
+    prefix: '/api/uploads',
+  });
+
   app.enableCors({
     origin: ['http://localhost:4200'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     credentials: true,
   });
 
-  // Global validation pipe
+  // ✅ FINAL & CORRECT ValidationPipe setup
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
-      transform: true,
       forbidNonWhitelisted: true,
+      transform: true,
+      transformOptions: {
+        enableImplicitConversion: true, // 🔥 THIS FIXES companyId issue
+      },
     }),
   );
 
-  // Set global prefix
-  app.setGlobalPrefix('api');
-
   const port = process.env.PORT || 3000;
   await app.listen(port);
-  console.log(`Application is running on: http://localhost:${port}/api`);
+
+  console.log(`🚀 Server running at http://localhost:${port}/api`);
 }
 
 bootstrap();

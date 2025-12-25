@@ -74,6 +74,10 @@ __decorate([
     __metadata("design:type", String)
 ], BrochureUpload.prototype, "extractionStatus", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'extraction_progress', type: 'int', default: 0 }),
+    __metadata("design:type", Number)
+], BrochureUpload.prototype, "extractionProgress", void 0);
+__decorate([
     (0, typeorm_1.Column)({ name: 'extraction_result', type: 'json', nullable: true }),
     __metadata("design:type", Object)
 ], BrochureUpload.prototype, "extractionResult", void 0);

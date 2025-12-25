@@ -18,10 +18,13 @@ export class Company {
   name: string;
 
   @Column({ name: 'logo_url', length: 500, nullable: true })
-  logoUrl: string;
+  logoUrl?: string;
+
+  @Column({ name: 'company_url', type: 'varchar', length: 255, nullable: true })
+  companyUrl?: string;
 
   @Column({ type: 'text', nullable: true })
-  description: string;
+  description?: string;
 
   @Column({ name: 'is_active', default: true })
   isActive: boolean;

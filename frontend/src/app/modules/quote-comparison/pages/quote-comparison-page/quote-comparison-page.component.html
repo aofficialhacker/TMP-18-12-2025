@@ -1,0 +1,31 @@
+<div class="quote-comparison-page">
+
+  <h2>Quote Comparison</h2>
+
+  <!-- Plan Selection -->
+  <div class="grid">
+    <app-plan-selection-card
+      *ngFor="let plan of selectedPlans; let i = index; trackBy: trackByIndex"
+      [excludedPlanIds]="getExcludedPlanIds(i)"
+      (planChange)="onPlanChange(i, $event)">
+    </app-plan-selection-card>
+  </div>
+
+  <!-- Compare Button -->
+  <div class="actions">
+    <button
+      class="compare-btn"
+      [disabled]="!isFormValid()"
+      (click)="comparePlans()">
+      Compare
+    </button>
+  </div>
+
+  <!-- Quotation Card (RESULT SECTION) -->
+  <div class="comparison-section" *ngIf="comparisonResult">
+    <app-quote-card
+      [comparison]="comparisonResult">
+    </app-quote-card>
+  </div>
+
+</div>

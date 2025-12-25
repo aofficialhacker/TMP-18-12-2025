@@ -29,16 +29,29 @@ import { AuthService } from '../../../core/services/auth.service';
             />
           </div>
 
+          <!-- PASSWORD WITH EYE BUTTON -->
           <div class="form-group">
             <label for="password">Password</label>
-            <input
-              type="password"
-              id="password"
-              [(ngModel)]="password"
-              name="password"
-              placeholder="Enter your password"
-              required
-            />
+
+            <div class="password-wrapper">
+              <input
+                [type]="showPassword ? 'text' : 'password'"
+                id="password"
+                [(ngModel)]="password"
+                name="password"
+                placeholder="Enter your password"
+                required
+              />
+
+              <button
+                type="button"
+                class="eye-btn"
+                (click)="showPassword = !showPassword"
+                aria-label="Toggle password visibility"
+              >
+                {{ showPassword ? '🙈' : '👁️' }}
+              </button>
+            </div>
           </div>
 
           <div class="error-message" *ngIf="errorMessage">
@@ -160,6 +173,31 @@ import { AuthService } from '../../../core/services/auth.service';
       background: #f5f5f5;
       border-radius: 4px;
     }
+
+    /* ===== Eye Button CSS (NEW, SAFE) ===== */
+    .password-wrapper {
+      position: relative;
+    }
+
+    .password-wrapper input {
+      padding-right: 40px;
+    }
+
+    .eye-btn {
+      position: absolute;
+      top: 50%;
+      right: 12px;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      color: #666;
+    }
+
+    .eye-btn:hover {
+      color: #333;
+    }
   `],
 })
 export class LoginComponent {
@@ -170,6 +208,9 @@ export class LoginComponent {
   password = '';
   isLoading = false;
   errorMessage = '';
+
+  // 👁️ Toggle control
+  showPassword = false;
 
   login(): void {
     if (!this.email || !this.password) {
@@ -186,7 +227,8 @@ export class LoginComponent {
       },
       error: (error) => {
         this.isLoading = false;
-        this.errorMessage = error.error?.message || 'Login failed. Please check your credentials.';
+        this.errorMessage =
+          error.error?.message || 'Login failed. Please check your credentials.';
       },
     });
   }

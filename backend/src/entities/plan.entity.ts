@@ -12,7 +12,17 @@ import { Company } from './company.entity';
 import { PlanFeatureValue } from './plan-feature-value.entity';
 import { BrochureUpload } from './brochure-upload.entity';
 
+/**
+ * IMPORTANT:
+ * - Keep this enum IN SYNC with DB ENUM values
+ * - Any new status must be added to DB via ALTER TABLE
+ */
 export enum PlanStatus {
+  // Upload lifecycle
+  UPLOAD_PENDING = 'upload_pending',     // + Add Plan
+  UPLOAD_COMPLETE = 'upload_complete',   // Verify & Save
+
+  // Existing / downstream states
   DRAFT = 'draft',
   PENDING_REVIEW = 'pending_review',
   PUBLISHED = 'published',
@@ -35,10 +45,22 @@ export class Plan {
   @Column({ length: 255 })
   name: string;
 
-  @Column({ name: 'sum_insured_min', type: 'decimal', precision: 15, scale: 2, nullable: true })
+  @Column({
+    name: 'sum_insured_min',
+    type: 'decimal',
+    precision: 15,
+    scale: 2,
+    nullable: true,
+  })
   sumInsuredMin: number;
 
-  @Column({ name: 'sum_insured_max', type: 'decimal', precision: 15, scale: 2, nullable: true })
+  @Column({
+    name: 'sum_insured_max',
+    type: 'decimal',
+    precision: 15,
+    scale: 2,
+    nullable: true,
+  })
   sumInsuredMax: number;
 
   @Column({ type: 'text', nullable: true })
@@ -50,7 +72,7 @@ export class Plan {
   @Column({
     type: 'enum',
     enum: PlanStatus,
-    default: PlanStatus.DRAFT,
+    default: PlanStatus.UPLOAD_PENDING,
   })
   status: PlanStatus;
 

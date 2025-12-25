@@ -9,7 +9,7 @@ const databaseConfig = () => ({
     password: process.env.DB_PASSWORD || 'Helloworld@11',
     database: process.env.DB_DATABASE || 'testmypolicy2',
     entities: [__dirname + '/../entities/*.entity{.ts,.js}'],
-    synchronize: true,
+    synchronize: false,
     logging: process.env.NODE_ENV === 'development',
 });
 exports.databaseConfig = databaseConfig;

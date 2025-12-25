@@ -36,10 +36,8 @@ let ExtractionController = class ExtractionController {
     getResults(uploadId) {
         return this.extractionService.getExtractionResults(uploadId);
     }
-    async uploadBrochure(file, req, companyId, planId) {
-        const cId = companyId ? parseInt(companyId, 10) : undefined;
-        const pId = planId ? parseInt(planId, 10) : undefined;
-        return this.extractionService.uploadBrochure(file, req.user.id, cId, pId);
+    uploadBrochure(file, req, companyId, planId) {
+        return this.extractionService.uploadBrochure(file, req.user.id, companyId ? +companyId : undefined, planId ? +planId : undefined);
     }
     processExtraction(uploadId) {
         return this.extractionService.processExtraction(uploadId);
@@ -49,6 +47,42 @@ let ExtractionController = class ExtractionController {
     }
     deleteUpload(uploadId) {
         return this.extractionService.deleteUpload(uploadId);
+    }
+    async streamProgress(uploadId, res, req) {
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.flushHeaders();
+        const send = (payload) => {
+            res.write(`data: ${JSON.stringify(payload)}\n\n`);
+        };
+        let lastProgress = -1;
+        const interval = setInterval(async () => {
+            try {
+                const upload = await this.extractionService.getUpload(uploadId);
+                const progress = upload.extractionProgress ?? 0;
+                if (progress !== lastProgress) {
+                    lastProgress = progress;
+                    send({
+                        progress,
+                        status: upload.extractionStatus,
+                    });
+                }
+                if (upload.extractionStatus === 'completed' ||
+                    upload.extractionStatus === 'failed') {
+                    clearInterval(interval);
+                    res.end();
+                }
+            }
+            catch {
+                clearInterval(interval);
+                res.end();
+            }
+        }, 1000);
+        req.on('close', () => {
+            clearInterval(interval);
+            res.end();
+        });
     }
 };
 exports.ExtractionController = ExtractionController;
@@ -86,8 +120,7 @@ __decorate([
             destination: './uploads',
             filename: (req, file, callback) => {
                 const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-                const ext = (0, path_1.extname)(file.originalname);
-                callback(null, `brochure-${uniqueSuffix}${ext}`);
+                callback(null, `brochure-${uniqueSuffix}${(0, path_1.extname)(file.originalname)}`);
             },
         }),
         fileFilter: (req, file, callback) => {
@@ -98,9 +131,7 @@ __decorate([
                 callback(null, true);
             }
         },
-        limits: {
-            fileSize: 10 * 1024 * 1024,
-        },
+        limits: { fileSize: 10 * 1024 * 1024 },
     })),
     __param(0, (0, common_1.UploadedFile)()),
     __param(1, (0, common_1.Request)()),
@@ -108,7 +139,7 @@ __decorate([
     __param(3, (0, common_1.Query)('planId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object, String, String]),
-    __metadata("design:returntype", Promise)
+    __metadata("design:returntype", void 0)
 ], ExtractionController.prototype, "uploadBrochure", null);
 __decorate([
     (0, common_1.Post)(':uploadId/process'),
@@ -132,6 +163,15 @@ __decorate([
     __metadata("design:paramtypes", [Number]),
     __metadata("design:returntype", void 0)
 ], ExtractionController.prototype, "deleteUpload", null);
+__decorate([
+    (0, common_1.Get)(':uploadId/progress'),
+    __param(0, (0, common_1.Param)('uploadId', common_1.ParseIntPipe)),
+    __param(1, (0, common_1.Res)()),
+    __param(2, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, Object, Object]),
+    __metadata("design:returntype", Promise)
+], ExtractionController.prototype, "streamProgress", null);
 exports.ExtractionController = ExtractionController = __decorate([
     (0, common_1.Controller)('extraction'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

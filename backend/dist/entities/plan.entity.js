@@ -16,6 +16,8 @@ const plan_feature_value_entity_1 = require("./plan-feature-value.entity");
 const brochure_upload_entity_1 = require("./brochure-upload.entity");
 var PlanStatus;
 (function (PlanStatus) {
+    PlanStatus["UPLOAD_PENDING"] = "upload_pending";
+    PlanStatus["UPLOAD_COMPLETE"] = "upload_complete";
     PlanStatus["DRAFT"] = "draft";
     PlanStatus["PENDING_REVIEW"] = "pending_review";
     PlanStatus["PUBLISHED"] = "published";
@@ -43,11 +45,23 @@ __decorate([
     __metadata("design:type", String)
 ], Plan.prototype, "name", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'sum_insured_min', type: 'decimal', precision: 15, scale: 2, nullable: true }),
+    (0, typeorm_1.Column)({
+        name: 'sum_insured_min',
+        type: 'decimal',
+        precision: 15,
+        scale: 2,
+        nullable: true,
+    }),
     __metadata("design:type", Number)
 ], Plan.prototype, "sumInsuredMin", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'sum_insured_max', type: 'decimal', precision: 15, scale: 2, nullable: true }),
+    (0, typeorm_1.Column)({
+        name: 'sum_insured_max',
+        type: 'decimal',
+        precision: 15,
+        scale: 2,
+        nullable: true,
+    }),
     __metadata("design:type", Number)
 ], Plan.prototype, "sumInsuredMax", void 0);
 __decorate([
@@ -62,7 +76,7 @@ __decorate([
     (0, typeorm_1.Column)({
         type: 'enum',
         enum: PlanStatus,
-        default: PlanStatus.DRAFT,
+        default: PlanStatus.UPLOAD_PENDING,
     }),
     __metadata("design:type", String)
 ], Plan.prototype, "status", void 0);

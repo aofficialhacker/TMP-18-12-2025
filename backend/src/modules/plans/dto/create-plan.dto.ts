@@ -1,7 +1,17 @@
-import { IsNotEmpty, IsOptional, IsString, IsBoolean, IsInt, IsNumber, IsEnum } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsBoolean,
+  IsInt,
+  IsNumber,
+  IsEnum,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 import { PlanStatus } from '../../../entities/plan.entity';
 
 export class CreatePlanDto {
+  @Type(() => Number)          // ✅ FIX
   @IsInt()
   @IsNotEmpty()
   companyId: number;
@@ -10,10 +20,12 @@ export class CreatePlanDto {
   @IsNotEmpty()
   name: string;
 
+  @Type(() => Number)          // ✅ FIX
   @IsNumber()
   @IsOptional()
   sumInsuredMin?: number;
 
+  @Type(() => Number)          // ✅ FIX
   @IsNumber()
   @IsOptional()
   sumInsuredMax?: number;

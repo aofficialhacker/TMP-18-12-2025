@@ -1,4 +1,5 @@
-import { IsNotEmpty, IsOptional, IsString, IsBoolean } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsBoolean, IsUrl } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class CreateCompanyDto {
   @IsString()
@@ -12,6 +13,11 @@ export class CreateCompanyDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @Transform(({ value }) => (value === '' ? undefined : value))
+  @IsOptional()
+  @IsUrl()
+  companyUrl?: string;
 
   @IsBoolean()
   @IsOptional()

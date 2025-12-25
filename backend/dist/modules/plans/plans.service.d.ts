@@ -19,8 +19,35 @@ export declare class PlansService {
     remove(id: number): Promise<{
         message: string;
     }>;
+    setActive(id: number, isActive: boolean): Promise<Plan>;
     updateFeatureValues(planId: number, updateDto: UpdateFeatureValuesDto): Promise<Plan>;
     getFeatureValues(planId: number): Promise<PlanFeatureValue[]>;
     publish(id: number): Promise<Plan>;
     setStatus(id: number, status: PlanStatus): Promise<Plan>;
+    comparePlans(body: any): Promise<{
+        clientDetails: {
+            name: any;
+            dob: any;
+            age: any;
+            preExistingDisease: string;
+            planType: any;
+            policyType: any;
+        };
+        plans: {
+            planId: number;
+            companyName: string;
+            companyLogo: string;
+            planName: string;
+            sumInsured: number;
+            premium: number;
+        }[];
+        features: Feature[];
+        featureValues: Record<number, Record<number, string>>;
+        terms: {
+            text: string[];
+            irDAI: string;
+            validity: string;
+            ibaiMembershipNo: string;
+        };
+    }>;
 }

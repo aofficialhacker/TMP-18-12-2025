@@ -16,8 +16,13 @@ export declare class GeminiService {
         extractionKeywords: string;
         extractionPrompt?: string;
     }[]): Promise<ExtractedFeature[]>;
-    private mockExtraction;
+    standardizeBatchOnce(items: {
+        featureId: number;
+        featureName: string;
+        extractedValue: string;
+    }[]): Promise<Record<number, string>>;
     standardizeFeatureValue(extractedValue: string, featureName: string, valueType: ValueType, rules: StandardizationRules | null): Promise<string>;
     private buildStandardizationPrompt;
+    private mockExtraction;
     private mockStandardization;
 }

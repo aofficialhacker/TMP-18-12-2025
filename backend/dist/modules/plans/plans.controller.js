@@ -34,6 +34,9 @@ let PlansController = class PlansController {
     getFeatureValues(id) {
         return this.plansService.getFeatureValues(id);
     }
+    comparePlans(body) {
+        return this.plansService.comparePlans(body);
+    }
     create(createPlanDto) {
         return this.plansService.create(createPlanDto);
     }
@@ -48,6 +51,9 @@ let PlansController = class PlansController {
     }
     setStatus(id, status) {
         return this.plansService.setStatus(id, status);
+    }
+    setActive(id, isActive) {
+        return this.plansService.setActive(id, isActive);
     }
     remove(id) {
         return this.plansService.remove(id);
@@ -76,6 +82,13 @@ __decorate([
     __metadata("design:paramtypes", [Number]),
     __metadata("design:returntype", void 0)
 ], PlansController.prototype, "getFeatureValues", null);
+__decorate([
+    (0, common_1.Post)('compare'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], PlansController.prototype, "comparePlans", null);
 __decorate([
     (0, common_1.Post)(),
     __param(0, (0, common_1.Body)()),
@@ -114,6 +127,14 @@ __decorate([
     __metadata("design:paramtypes", [Number, String]),
     __metadata("design:returntype", void 0)
 ], PlansController.prototype, "setStatus", null);
+__decorate([
+    (0, common_1.Put)(':id/active'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(1, (0, common_1.Body)('isActive')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, Boolean]),
+    __metadata("design:returntype", void 0)
+], PlansController.prototype, "setActive", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),

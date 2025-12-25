@@ -2,6 +2,8 @@ import { Company } from './company.entity';
 import { PlanFeatureValue } from './plan-feature-value.entity';
 import { BrochureUpload } from './brochure-upload.entity';
 export declare enum PlanStatus {
+    UPLOAD_PENDING = "upload_pending",
+    UPLOAD_COMPLETE = "upload_complete",
     DRAFT = "draft",
     PENDING_REVIEW = "pending_review",
     PUBLISHED = "published"

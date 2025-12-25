@@ -32,6 +32,15 @@ export const routes: Routes = [
     loadComponent: () => import('./features/plans/plans.component').then(m => m.PlansComponent),
     canActivate: [authGuard],
   },
+
+  /* 🔥 REAL QUOTE COMPARISON PAGE */
+  {
+  path: 'quote-comparison',
+  loadComponent: () =>
+    import('./modules/quote-comparison/pages/quote-comparison-page/quote-comparison-page.component')
+      .then(m => m.QuoteComparisonPageComponent),
+  canActivate: [authGuard],
+  },
   {
     path: 'extraction/upload',
     loadComponent: () => import('./features/extraction/upload/upload.component').then(m => m.UploadComponent),
@@ -47,6 +56,7 @@ export const routes: Routes = [
     loadComponent: () => import('./features/extraction/prompts/extraction-prompts.component').then(m => m.ExtractionPromptsComponent),
     canActivate: [authGuard],
   },
+
   {
     path: '',
     redirectTo: 'dashboard',

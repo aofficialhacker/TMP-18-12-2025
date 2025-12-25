@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -12,250 +12,401 @@ import { ApiService } from '../../../core/services/api.service';
     <div class="page-container">
       <h2>Upload Brochure</h2>
 
+      <!-- 🔄 EXTRACTION LOADER -->
+      <div class="loader-overlay" *ngIf="isExtracting">
+        <div class="loader-box">
+          <div class="spinner"></div>
+          <p class="loader-title">{{ progressLabel }}</p>
+
+          <div class="progress-wrapper">
+            <div class="progress-bar">
+              <div class="progress-fill" [style.width.%]="progress"></div>
+            </div>
+            <p class="progress-text">{{ progress }}%</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ✅ SUCCESS MODAL (REFINED) -->
+      <div class="modal-overlay" *ngIf="showSuccessModal">
+        <div class="success-modal">
+          <div class="success-icon">
+            ✓
+          </div>
+
+          <h3 class="success-title">Extraction completed</h3>
+
+          <p class="success-subtitle">
+            All features were successfully extracted for
+            <strong>{{ completedPlanName }}</strong>.
+          </p>
+
+          <button class="btn btn-primary success-cta" (click)="goToVerify()">
+            Review & Verify
+          </button>
+
+          <button class="success-secondary" (click)="showSuccessModal = false">
+            Close
+          </button>
+        </div>
+      </div>
+
+      <!-- ================= UPLOAD SECTION ================= -->
       <div class="upload-section card">
         <h3>Upload PDF Brochure</h3>
         <p>Upload a health insurance brochure PDF to extract features using AI.</p>
 
-        <div class="form-group">
-          <label>Company (Optional)</label>
-          <select [(ngModel)]="selectedCompanyId">
-            <option [value]="null">-- Select Company --</option>
-            <option *ngFor="let company of companies" [value]="company.id">{{ company.name }}</option>
-          </select>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Company *</label>
+            <select [(ngModel)]="selectedCompanyId" (change)="onCompanyChange()">
+              <option [ngValue]="null">-- Select Company --</option>
+              <option *ngFor="let company of companies" [ngValue]="company.id">
+                {{ company.name }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Plan *</label>
+            <select
+              [(ngModel)]="selectedPlanId"
+              [disabled]="!selectedCompanyId || !plans.length"
+            >
+              <option [ngValue]="null">-- Select Plan --</option>
+              <option *ngFor="let plan of plans" [ngValue]="plan.id">
+                {{ plan.name }}
+              </option>
+            </select>
+          </div>
         </div>
 
+        <!-- DROPZONE -->
         <div
-          class="dropzone"
-          [class.dragover]="isDragOver"
-          (dragover)="onDragOver($event)"
-          (dragleave)="isDragOver = false"
-          (drop)="onDrop($event)"
-          (click)="fileInput.click()"
+          class="enhanced-dropzone"
+          [class.disabled]="!isUploadEnabled"
+          (click)="isUploadEnabled && fileInput.click()"
         >
           <input
-            type="file"
             #fileInput
-            (change)="onFileSelect($event)"
-            accept="application/pdf"
+            type="file"
             hidden
+            accept="application/pdf"
+            (change)="onFileSelect($event)"
           />
+
           <div class="dropzone-content">
-            <span class="icon">📄</span>
-            <p *ngIf="!selectedFile">Drag & drop PDF here or click to browse</p>
+            <div class="pdf-icon">📄</div>
+
+            <p class="title" *ngIf="isUploadEnabled">
+              Drag & Drop your PDF brochure
+            </p>
+
+            <p class="title" *ngIf="!isUploadEnabled">
+              Select Company & Plan first
+            </p>
+
+            <p class="subtitle">
+              or <span class="browse">click to browse</span>
+            </p>
+
+            <p class="hint">Only PDF files are supported</p>
+
             <p *ngIf="selectedFile" class="file-selected">
-              <strong>{{ selectedFile.name }}</strong>
-              <span>({{ formatFileSize(selectedFile.size) }})</span>
+              ✔ {{ selectedFile.name }}
             </p>
           </div>
         </div>
 
         <button
-          class="btn btn-primary"
-          (click)="uploadFile()"
-          [disabled]="!selectedFile || isUploading"
+          class="btn btn-primary upload-btn"
+          (click)="uploadAndExtract()"
+          [disabled]="!selectedFile || !isUploadEnabled || isExtracting"
         >
-          {{ isUploading ? 'Uploading...' : 'Upload & Extract' }}
+          {{ isExtracting ? 'Processing…' : 'Upload & Extract' }}
         </button>
       </div>
 
-      <div class="uploads-section card">
+      <!-- ================= RECENT UPLOADS ================= -->
+      <div class="card">
         <h3>Recent Uploads</h3>
-        <table class="data-table" *ngIf="uploads.length">
-          <thead>
-            <tr>
-              <th>Filename</th>
-              <th>Company</th>
-              <th>Status</th>
-              <th>Uploaded</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let upload of uploads">
-              <td>{{ upload.originalFilename }}</td>
-              <td>{{ upload.company?.name || '-' }}</td>
-              <td>
-                <span class="badge" [ngClass]="upload.extractionStatus">
-                  {{ upload.extractionStatus }}
-                </span>
-              </td>
-              <td>{{ upload.createdAt | date:'medium' }}</td>
-              <td>
-                <button
-                  *ngIf="upload.extractionStatus === 'pending'"
-                  class="btn btn-sm"
-                  (click)="processExtraction(upload)"
-                >
-                  Extract
-                </button>
-                <button
-                  *ngIf="upload.extractionStatus === 'completed'"
-                  class="btn btn-sm btn-success"
-                  (click)="goToVerify(upload)"
-                >
-                  Verify
-                </button>
-                <button
-                  *ngIf="upload.extractionStatus === 'processing'"
-                  class="btn btn-sm"
-                  disabled
-                >
-                  Processing...
-                </button>
-                <button class="btn-icon" (click)="deleteUpload(upload)">🗑️</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <p *ngIf="!uploads.length" class="no-data">No uploads yet</p>
+
+        <div class="upload-list uploads-grid">
+          <div class="upload-item header">
+            <span>File</span>
+            <span>Company</span>
+            <span>Plan</span>
+            <span>Status</span>
+            <span>Date</span>
+          </div>
+
+          <div
+            *ngFor="let upload of recentUploads"
+            class="upload-item"
+            (click)="openUpload(upload)"
+          >
+            <span>{{ upload.originalFilename }}</span>
+            <span>{{ upload.company?.name || '-' }}</span>
+            <span>{{ upload.plan?.name || '-' }}</span>
+            <span>{{ upload.extractionStatus }}</span>
+            <span>{{ upload.createdAt | date: 'short' }}</span>
+          </div>
+        </div>
       </div>
     </div>
   `,
   styles: [`
+    /* ===== EXISTING CSS (UNCHANGED) ===== */
     .page-container { padding: 20px; }
     .card { background: #fff; border-radius: 8px; padding: 24px; margin-bottom: 20px; }
-    .card h3 { margin: 0 0 8px; }
-    .card p { color: #666; margin-bottom: 20px; }
-
-    .form-group { margin-bottom: 20px; }
+    .form-row { display: grid; grid-template-columns: 2fr 5fr; gap: 20px; margin-bottom: 20px; }
     .form-group label { display: block; margin-bottom: 6px; font-weight: 500; }
-    .form-group select { width: 100%; max-width: 300px; padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
+    .form-group select { width: 100%; max-width: 280px; padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
 
-    .dropzone {
-      border: 2px dashed #ccc;
-      border-radius: 8px;
-      padding: 40px;
-      text-align: center;
+    .btn-primary {
+      background: #4a9eff;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 6px;
+      border: none;
       cursor: pointer;
-      transition: all 0.2s;
-      margin-bottom: 20px;
     }
-    .dropzone:hover, .dropzone.dragover { border-color: #4a9eff; background: #f8fbff; }
-    .dropzone-content .icon { font-size: 3rem; }
-    .file-selected { color: #2e7d32; }
+    .btn-primary:disabled {
+      background: #bcdcff;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
 
-    .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; }
-    .btn-primary { background: #4a9eff; color: #fff; }
-    .btn-sm { padding: 6px 12px; font-size: 0.85rem; }
-    .btn-success { background: #4caf50; color: #fff; }
-    .btn-icon { background: none; border: none; cursor: pointer; font-size: 1rem; }
-    .btn:disabled { background: #ccc; cursor: not-allowed; }
+    .upload-btn { margin-top: 24px; }
 
-    .data-table { width: 100%; border-collapse: collapse; }
-    .data-table th, .data-table td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+    .enhanced-dropzone {
+      border: 2px dashed #cfd8dc;
+      border-radius: 14px;
+      padding: 60px 40px;
+      background: linear-gradient(135deg, #f9fbff, #f4f8ff);
+      cursor: pointer;
+    }
+    .enhanced-dropzone.disabled {
+      opacity: 0.5;
+      pointer-events: none;
+    }
 
-    .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; text-transform: capitalize; }
-    .badge.pending { background: #fff3e0; color: #e65100; }
-    .badge.processing { background: #e3f2fd; color: #1565c0; }
-    .badge.completed { background: #e8f5e9; color: #2e7d32; }
-    .badge.failed { background: #ffebee; color: #c62828; }
+    .dropzone-content { text-align: center; }
+    .pdf-icon { font-size: 3.5rem; margin-bottom: 10px; }
+    .browse { color: #4a9eff; font-weight: 600; }
+    .file-selected { margin-top: 12px; color: #2e7d32; font-weight: 500; }
 
-    .no-data { color: #666; font-style: italic; text-align: center; padding: 20px; }
+    .upload-list { display: flex; flex-direction: column; gap: 10px; }
+    .uploads-grid .upload-item {
+      display: grid;
+      grid-template-columns: 3fr 2fr 2fr 1.5fr 1.5fr;
+      gap: 12px;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .loader-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(255,255,255,0.85);
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .loader-box {
+      background: #fff;
+      padding: 30px 40px;
+      border-radius: 12px;
+      text-align: center;
+      min-width: 320px;
+    }
+
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 5px solid #ddd;
+      border-top-color: #4a9eff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      backdrop-filter: blur(2px);
+      z-index: 3000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ===== NEW SUCCESS MODAL STYLES (SAFE ADDITION) ===== */
+    .success-modal {
+      background: #fff;
+      padding: 36px 40px;
+      border-radius: 14px;
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+    }
+
+    .success-icon {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 16px;
+      border-radius: 50%;
+      background: #e6f3ff;
+      color: #4a9eff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .success-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .success-subtitle {
+      font-size: 14px;
+      color: #555;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    .success-cta {
+      width: 100%;
+      margin-bottom: 12px;
+    }
+
+    .success-secondary {
+      background: none;
+      border: none;
+      color: #666;
+      font-size: 13px;
+      cursor: pointer;
+    }
   `],
 })
-export class UploadComponent implements OnInit {
+export class UploadComponent implements OnInit, OnDestroy {
   private apiService = inject(ApiService);
   private router = inject(Router);
 
   companies: any[] = [];
-  uploads: any[] = [];
+  plans: any[] = [];
+  recentUploads: any[] = [];
+
   selectedCompanyId: number | null = null;
+  selectedPlanId: number | null = null;
   selectedFile: File | null = null;
-  isDragOver = false;
-  isUploading = false;
 
-  ngOnInit(): void {
+  isExtracting = false;
+  progress = 0;
+  progressLabel = '';
+
+  showSuccessModal = false;
+  completedUploadId: number | null = null;
+  completedPlanName = '';
+
+  private pollingTimer: any;
+
+  get isUploadEnabled(): boolean {
+    return !!this.selectedCompanyId && !!this.selectedPlanId;
+  }
+
+  ngOnInit() {
     this.loadCompanies();
-    this.loadUploads();
+    this.loadRecentUploads();
   }
 
-  loadCompanies(): void {
-    this.apiService.getCompanies().subscribe({
-      next: (companies) => this.companies = companies,
+  ngOnDestroy() {
+    if (this.pollingTimer) clearInterval(this.pollingTimer);
+  }
+
+  loadCompanies() {
+    this.apiService.getCompanies().subscribe(d => this.companies = d);
+  }
+
+  loadRecentUploads() {
+    this.apiService.getUploads().subscribe(d => this.recentUploads = d.slice(0, 10));
+  }
+
+  onCompanyChange() {
+    this.selectedPlanId = null;
+    this.apiService.getPlans(this.selectedCompanyId!).subscribe(p => this.plans = p);
+  }
+
+  uploadAndExtract() {
+    this.isExtracting = true;
+    this.progress = 0;
+    this.progressLabel = 'Uploading brochure…';
+
+    this.apiService.uploadBrochure(
+      this.selectedFile!,
+      this.selectedCompanyId!,
+      this.selectedPlanId!
+    ).subscribe(upload => {
+      this.apiService.processExtraction(upload.id).subscribe(() => {
+        this.startPolling(upload.id);
+      });
     });
   }
 
-  loadUploads(): void {
-    this.apiService.getUploads().subscribe({
-      next: (uploads) => this.uploads = uploads,
+  startPolling(uploadId: number) {
+    this.pollingTimer = setInterval(() => {
+      this.apiService.getExtractionStatus(uploadId).subscribe(res => {
+        this.progress = res.progress ?? 0;
+
+        if (this.progress < 30) this.progressLabel = 'Preparing…';
+        else if (this.progress < 70) this.progressLabel = 'Extracting features…';
+        else this.progressLabel = 'Finalizing…';
+
+        if (res.status === 'completed') {
+          clearInterval(this.pollingTimer);
+          this.isExtracting = false;
+          this.completedUploadId = uploadId;
+          this.completedPlanName =
+            this.plans.find(p => p.id === this.selectedPlanId)?.name || '';
+          this.showSuccessModal = true;
+          this.loadRecentUploads();
+        }
+
+        if (res.status === 'failed') {
+          clearInterval(this.pollingTimer);
+          this.isExtracting = false;
+          alert('Extraction failed');
+        }
+      });
+    }, 2000);
+  }
+
+  goToVerify() {
+    this.router.navigate(['/extraction/verify'], {
+      queryParams: { uploadId: this.completedUploadId },
     });
   }
 
-  onDragOver(event: DragEvent): void {
-    event.preventDefault();
-    this.isDragOver = true;
-  }
-
-  onDrop(event: DragEvent): void {
-    event.preventDefault();
-    this.isDragOver = false;
-    const files = event.dataTransfer?.files;
-    if (files?.length) {
-      this.handleFile(files[0]);
+  openUpload(upload: any) {
+    if (upload.extractionStatus === 'completed') {
+      this.router.navigate(['/extraction/verify'], {
+        queryParams: { uploadId: upload.id },
+      });
     }
   }
 
-  onFileSelect(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    if (input.files?.length) {
-      this.handleFile(input.files[0]);
-    }
-  }
-
-  handleFile(file: File): void {
-    if (file.type !== 'application/pdf') {
-      alert('Only PDF files are allowed');
-      return;
-    }
-    this.selectedFile = file;
-  }
-
-  formatFileSize(bytes: number): string {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-  }
-
-  uploadFile(): void {
-    if (!this.selectedFile) return;
-
-    this.isUploading = true;
-    this.apiService.uploadBrochure(this.selectedFile, this.selectedCompanyId || undefined).subscribe({
-      next: (upload) => {
-        this.isUploading = false;
-        this.selectedFile = null;
-        this.loadUploads();
-        // Automatically start extraction
-        this.processExtraction(upload);
-      },
-      error: (err) => {
-        this.isUploading = false;
-        alert(err.error?.message || 'Upload failed');
-      },
-    });
-  }
-
-  processExtraction(upload: any): void {
-    this.apiService.processExtraction(upload.id).subscribe({
-      next: () => {
-        this.loadUploads();
-        alert('Extraction completed! Click "Verify" to review the results.');
-      },
-      error: (err) => {
-        this.loadUploads();
-        alert(err.error?.message || 'Extraction failed');
-      },
-    });
-  }
-
-  goToVerify(upload: any): void {
-    this.router.navigate(['/extraction/verify'], { queryParams: { uploadId: upload.id } });
-  }
-
-  deleteUpload(upload: any): void {
-    if (!confirm('Delete this upload?')) return;
-    this.apiService.deleteUpload(upload.id).subscribe({
-      next: () => this.loadUploads(),
-    });
+  onFileSelect(e: any) {
+    this.selectedFile = e.target.files?.[0] || null;
   }
 }

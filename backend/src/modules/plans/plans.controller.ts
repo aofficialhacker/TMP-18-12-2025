@@ -41,6 +41,15 @@ export class PlansController {
     return this.plansService.getFeatureValues(id);
   }
 
+  /**
+   * ✅ NEW – Quote Comparison API
+   * Does NOT affect any existing logic
+   */
+  @Post('compare')
+  comparePlans(@Body() body: any) {
+    return this.plansService.comparePlans(body);
+  }
+
   @Post()
   create(@Body() createPlanDto: CreatePlanDto) {
     return this.plansService.create(createPlanDto);
@@ -73,6 +82,14 @@ export class PlansController {
     @Body('status') status: PlanStatus,
   ) {
     return this.plansService.setStatus(id, status);
+  }
+
+  @Put(':id/active')
+  setActive(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('isActive') isActive: boolean,
+  ) {
+    return this.plansService.setActive(id, isActive);
   }
 
   @Delete(':id')

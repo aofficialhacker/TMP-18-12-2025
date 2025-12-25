@@ -26,12 +26,10 @@ let StandardizationService = StandardizationService_1 = class StandardizationSer
         try {
             const mappedValue = this.tryMappingMatch(extractedValue, feature.standardizationRules);
             if (mappedValue !== null) {
-                this.logger.debug(`Mapped value found for "${extractedValue}": ${mappedValue}`);
                 return mappedValue.toString();
             }
             const aiStandardized = await this.geminiService.standardizeFeatureValue(extractedValue, feature.name, feature.valueType, feature.standardizationRules);
-            const validatedValue = this.validateAgainstRules(aiStandardized, feature.valueType, feature.standardizationRules);
-            return validatedValue;
+            return this.validateAgainstRules(aiStandardized, feature.valueType, feature.standardizationRules);
         }
         catch (error) {
             this.logger.error(`Error standardizing value for ${feature.name}: ${error.message}`);
@@ -39,12 +37,23 @@ let StandardizationService = StandardizationService_1 = class StandardizationSer
         }
     }
     async standardizeBatch(extractedFeatures, features) {
-        const featureMap = new Map(features.map((f) => [f.id, f]));
+        const featureMap = new Map(features.map(f => [f.id, f]));
         const results = [];
+        let aiStandardizedMap = {};
+        try {
+            aiStandardizedMap =
+                await this.geminiService.standardizeBatchOnce(extractedFeatures.map(f => ({
+                    featureId: f.featureId,
+                    featureName: f.featureName,
+                    extractedValue: f.extractedValue,
+                })));
+        }
+        catch (error) {
+            this.logger.error(`Batch standardization failed, falling back to raw values: ${error.message}`);
+        }
         for (const ef of extractedFeatures) {
             const feature = featureMap.get(ef.featureId);
             if (!feature) {
-                this.logger.warn(`Feature ${ef.featureId} not found for standardization`);
                 results.push({
                     featureId: ef.featureId,
                     featureName: ef.featureName,
@@ -54,7 +63,8 @@ let StandardizationService = StandardizationService_1 = class StandardizationSer
                 });
                 continue;
             }
-            const standardizedValue = await this.standardizeValue(ef.extractedValue, feature);
+            const aiValue = aiStandardizedMap[ef.featureId] || ef.extractedValue;
+            const standardizedValue = this.validateAgainstRules(aiValue, feature.valueType, feature.standardizationRules);
             results.push({
                 featureId: ef.featureId,
                 featureName: ef.featureName,
@@ -66,15 +76,14 @@ let StandardizationService = StandardizationService_1 = class StandardizationSer
         return results;
     }
     tryMappingMatch(extractedValue, rules) {
-        if (!rules?.mappings) {
+        if (!rules?.mappings)
             return null;
-        }
-        const normalizedExtracted = extractedValue.toLowerCase().trim();
-        if (rules.mappings[normalizedExtracted] !== undefined) {
-            return rules.mappings[normalizedExtracted];
+        const normalized = extractedValue.toLowerCase().trim();
+        if (rules.mappings[normalized] !== undefined) {
+            return rules.mappings[normalized];
         }
         for (const [key, value] of Object.entries(rules.mappings)) {
-            if (normalizedExtracted.includes(key.toLowerCase())) {
+            if (normalized.includes(key.toLowerCase())) {
                 return value;
             }
         }
@@ -87,59 +96,29 @@ let StandardizationService = StandardizationService_1 = class StandardizationSer
         switch (valueType) {
             case standardization_types_1.ValueType.ENUM:
                 if (rules?.allowedValues) {
-                    const upperValue = value.toUpperCase().replace(/\s+/g, '_');
-                    if (rules.allowedValues.includes(upperValue)) {
-                        return upperValue;
-                    }
-                    const match = rules.allowedValues.find((av) => av.includes(upperValue) || upperValue.includes(av));
-                    if (match) {
-                        return match;
-                    }
-                    return rules.defaultValue?.toString() || 'NOT_SPECIFIED';
+                    const upper = value.toUpperCase().replace(/\s+/g, '_');
+                    return (rules.allowedValues.find(av => av.includes(upper) || upper.includes(av)) ||
+                        rules.defaultValue?.toString() ||
+                        'NOT_SPECIFIED');
                 }
                 return value.toUpperCase().replace(/\s+/g, '_');
             case standardization_types_1.ValueType.BOOLEAN:
-                const boolLower = value.toLowerCase();
-                if (boolLower.includes('yes') ||
-                    boolLower.includes('covered') ||
-                    boolLower.includes('available') ||
-                    boolLower.includes('included')) {
+                const v = value.toLowerCase();
+                if (['yes', 'covered', 'available', 'included'].some(k => v.includes(k)))
                     return 'COVERED';
-                }
-                if (boolLower.includes('no') ||
-                    boolLower.includes('not covered') ||
-                    boolLower.includes('not available') ||
-                    boolLower.includes('excluded')) {
+                if (['no', 'excluded', 'not covered'].some(k => v.includes(k)))
                     return 'NOT_COVERED';
-                }
-                if (boolLower.includes('partial') || boolLower.includes('limited')) {
+                if (['partial', 'limited'].some(k => v.includes(k)))
                     return 'PARTIAL';
-                }
                 return rules?.defaultValue?.toString() || 'NOT_SPECIFIED';
             case standardization_types_1.ValueType.NUMERIC:
-                const numMatch = value.match(/[\d,]+(\.\d+)?/);
-                if (numMatch) {
-                    const numValue = parseFloat(numMatch[0].replace(/,/g, ''));
-                    if (rules?.normalize) {
-                        if (rules.normalize.minValue !== undefined && numValue < rules.normalize.minValue) {
-                            return rules.normalize.minValue.toString();
-                        }
-                        if (rules.normalize.maxValue !== undefined && numValue > rules.normalize.maxValue) {
-                            return rules.normalize.maxValue.toString();
-                        }
-                    }
-                    return numValue.toString();
-                }
-                if (value.toLowerCase().includes('unlimited') || value.toLowerCase().includes('no limit')) {
-                    return '-1';
-                }
+                const num = value.match(/[\d,.]+/);
+                if (num)
+                    return parseFloat(num[0].replace(/,/g, '')).toString();
                 return rules?.defaultValue?.toString() || '0';
             case standardization_types_1.ValueType.PERCENTAGE:
-                const pctMatch = value.match(/(\d+(\.\d+)?)\s*%?/);
-                if (pctMatch) {
-                    return pctMatch[1];
-                }
-                return rules?.defaultValue?.toString() || '0';
+                const pct = value.match(/(\d+(\.\d+)?)/);
+                return pct ? pct[1] : rules?.defaultValue?.toString() || '0';
             case standardization_types_1.ValueType.CURRENCY:
                 return this.normalizeCurrency(value, rules);
             case standardization_types_1.ValueType.TEXT:
@@ -148,26 +127,19 @@ let StandardizationService = StandardizationService_1 = class StandardizationSer
         }
     }
     normalizeCurrency(value, rules) {
-        const lowerValue = value.toLowerCase();
-        if (lowerValue.includes('unlimited') || lowerValue.includes('no limit')) {
+        const lower = value.toLowerCase();
+        if (lower.includes('unlimited'))
             return '-1';
-        }
-        const numMatch = value.match(/[\d,]+(\.\d+)?/);
-        if (!numMatch) {
+        const match = value.match(/[\d,]+(\.\d+)?/);
+        if (!match)
             return rules?.defaultValue?.toString() || '0';
-        }
-        let amount = parseFloat(numMatch[0].replace(/,/g, ''));
-        if (lowerValue.includes('cr') || lowerValue.includes('crore')) {
-            amount = amount * 100;
-        }
-        else if (lowerValue.includes('lakh') || lowerValue.includes('lac') || lowerValue.includes('l')) {
-        }
-        else if (lowerValue.includes('k') || lowerValue.includes('thousand')) {
-            amount = amount / 100;
-        }
-        else if (amount > 10000) {
-            amount = amount / 100000;
-        }
+        let amount = parseFloat(match[0].replace(/,/g, ''));
+        if (lower.includes('crore'))
+            amount *= 100;
+        else if (lower.includes('thousand'))
+            amount /= 100;
+        else if (amount > 10000)
+            amount /= 100000;
         return Math.round(amount * 100) / 100 + '';
     }
 };
