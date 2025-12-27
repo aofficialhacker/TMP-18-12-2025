@@ -1,3 +1,5 @@
+import { SafeUrl } from '@angular/platform-browser';
+
 /**
  * Single plan shown in comparison
  * NOTE:
@@ -7,7 +9,10 @@
 export interface ComparisonPlan {
   planId: number;
   companyName: string;
-  companyLogo?: string;
+
+  // 🔥 Angular safe image url (prevents blank logo issue)
+  companyLogo?: SafeUrl;
+
   planName: string;
   sumInsured: number;
   premium: number;

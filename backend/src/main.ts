@@ -9,33 +9,38 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // 🔴 MUST COME FIRST
+  // API prefix
   app.setGlobalPrefix('api');
 
-  // Ensure uploads directory exists
+  // Ensure upload folder exists
   const uploadPath = join(process.cwd(), 'uploads/companies');
   if (!existsSync(uploadPath)) {
     mkdirSync(uploadPath, { recursive: true });
   }
 
-  // ✅ Static assets under /api/uploads
+  // Serve uploaded logos publicly
+  // http://localhost:3000/uploads/companies/xxx.png
   app.useStaticAssets(join(process.cwd(), 'uploads'), {
-    prefix: '/api/uploads',
+    prefix: '/uploads',
+    setHeaders: (res) => {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+    },
   });
 
+  // CORS for Angular
   app.enableCors({
     origin: ['http://localhost:4200'],
     credentials: true,
   });
 
-  // ✅ FINAL & CORRECT ValidationPipe setup
+  // Global validation
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
       transformOptions: {
-        enableImplicitConversion: true, // 🔥 THIS FIXES companyId issue
+        enableImplicitConversion: true,
       },
     }),
   );

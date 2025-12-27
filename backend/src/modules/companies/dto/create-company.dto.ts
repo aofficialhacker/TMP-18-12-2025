@@ -2,13 +2,16 @@ import { IsNotEmpty, IsOptional, IsString, IsBoolean, IsUrl } from 'class-valida
 import { Transform } from 'class-transformer';
 
 export class CreateCompanyDto {
+
   @IsString()
   @IsNotEmpty()
   name: string;
 
-  @IsString()
+  // 🔥 CRITICAL FIX: allow multipart/form-data URL logo input
+  @Transform(({ value }) => value?.toString())
   @IsOptional()
-  logoUrl?: string;
+  @IsString()
+  logo_url?: string;
 
   @IsString()
   @IsOptional()
@@ -19,6 +22,7 @@ export class CreateCompanyDto {
   @IsUrl()
   companyUrl?: string;
 
+  @Transform(({ value }) => value === 'true' || value === true )
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;

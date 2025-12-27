@@ -1,147 +1,119 @@
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ComparisonResult } from '../../models/comparison.model';
+import { environment } from '../../../../../environments/environment';
 
 @Component({
   selector: 'app-comparison-table',
   standalone: true,
   imports: [CommonModule],
   template: `
-    <table class="comparison-table" *ngIf="comparison">
-
+    <table class="comparison-master" *ngIf="comparison">
       <tbody>
+
+        <!-- HEADER ROW WITH LOGOS -->
+        <tr>
+          <td class="feature-cell"></td>
+
+          <td class="value-cell" *ngFor="let plan of comparison.plans">
+            <div class="plan-logo-wrapper">
+              <img
+                *ngIf="plan.companyLogo"
+                [src]="plan.companyLogo"
+                crossorigin="anonymous"
+                class="plan-logo"
+              />
+              <div class="plan-name">{{ plan.companyName }}</div>
+            </div>
+          </td>
+        </tr>
+
+        <!-- FEATURE ROWS -->
         <tr *ngFor="let feature of comparison.features">
 
-          <!-- FEATURE NAME -->
-          <td class="feature-col">
-            <span class="feature-text">
-              {{ feature.name }}
-            </span>
-
+          <!-- LEFT FEATURE COLUMN -->
+          <td class="feature-cell">
+            {{ feature.name }}
             <span *ngIf="feature.description" class="info-wrapper">
               <span class="info-icon">i</span>
-              <span class="tooltip">
-                {{ feature.description }}
-              </span>
+              <span class="tooltip">{{ feature.description }}</span>
             </span>
           </td>
 
-          <!-- VALUES -->
-          <td
-            class="plan-col"
-            *ngFor="let plan of comparison.plans">
-            {{
-              comparison.featureValues[feature.id]?.[plan.planId]
-              || 'Not Available'
-            }}
+          <!-- RIGHT VALUE COLUMNS -->
+          <td class="value-cell" *ngFor="let plan of comparison.plans">
+            {{ comparison.featureValues[feature.id]?.[plan.planId] || 'Not Available' }}
           </td>
 
         </tr>
       </tbody>
-
     </table>
   `,
   styles: [`
-    .comparison-table {
+    table.comparison-master {
       width: 100%;
       border-collapse: collapse;
       table-layout: fixed;
       font-size: 13px;
-      text-align: center;
     }
 
-    td {
-      border: 1px solid #cfd6e3;
-      padding: 12px;
-      vertical-align: top;
-      word-break: break-word;
-    }
-
-    /* FEATURE COLUMN */
-    .feature-col {
-      width: 220px;
-      background: #f4f6fb;
-      text-align: center;
-    }
-
-    .feature-text {
-      color: #1f2937;          /* DARKER */
-      font-weight: 700;
-    }
-
-    /* PLAN VALUE COLUMNS */
-    .plan-col {
-      width: calc((100% - 220px) / 3);
-      color: #4b5563;          /* LIGHTER */
-      font-weight: 600;
-      line-height: 1.4;
-    }
-
-    /* INFO ICON */
-    .info-wrapper {
-      position: relative;
-      display: inline-block;
-      margin-left: 6px;
-    }
-
-    .info-icon {
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      border: 1.5px solid #2f5fa7;
-      color: #2f5fa7;
-      font-size: 11px;
-      line-height: 14px;
-      text-align: center;
-      cursor: pointer;
-      background: #ffffff;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-      transition: all 0.2s ease;
-    }
-
-    .info-icon:hover {
-      background: #2f5fa7;
-      color: #fff;
-      transform: scale(1.05);
-    }
-
-    /* TOOLTIP */
-    .tooltip {
-      visibility: hidden;
-      opacity: 0;
-      position: absolute;
-      left: 24px;
-      top: 50%;
-      transform: translateY(-50%);
-      background: #111827;
-      color: #fff;
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 12px;
+    .feature-cell {
       width: 260px;
-      z-index: 1000;
-      transition: all 0.2s ease;
+      background: #f8fbff;
+      border: 1px solid #2f5fa7;
+      padding: 12px 14px;
+      vertical-align: middle;
+      font-weight: 600;
+      word-break: break-word;
+      line-height: 1.35;
     }
 
-    .tooltip::before {
-      content: '';
-      position: absolute;
-      left: -6px;
-      top: 50%;
-      transform: translateY(-50%);
-      border-width: 6px;
-      border-style: solid;
-      border-color: transparent #111827 transparent transparent;
+    .value-cell {
+      width: calc((100% - 260px) / 3);
+      border: 1px solid #2f5fa7;
+      padding: 12px 14px;
+      text-align: center;
+      vertical-align: middle;
+      font-weight: 600;
+      word-break: break-word;
+      line-height: 1.35;
     }
 
-    .info-wrapper:hover .tooltip {
-      visibility: visible;
-      opacity: 1;
+    .plan-logo-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
     }
 
-    tbody tr:hover td {
-      background: #f8fafc;
+    .plan-logo {
+      max-width: 120px;
+      max-height: 50px;
+      object-fit: contain;
     }
+
+    .plan-name {
+      font-size: 12px;
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    .info-wrapper { margin-left: 6px; position: relative; }
+    .info-icon {
+      width: 16px; height: 16px; border-radius: 50%;
+      border: 1px solid #2563eb; color: #2563eb;
+      font-size: 11px; background: #fff; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .tooltip {
+      visibility: hidden; opacity: 0;
+      position: absolute; bottom: calc(100% + 8px); left: 0;
+      background: #111827; color: #fff;
+      padding: 8px 10px; border-radius: 6px;
+      font-size: 12px; width: 240px; z-index: 20;
+      transition: .2s;
+    }
+    .info-wrapper:hover .tooltip { visibility: visible; opacity: 1; }
   `]
 })
 export class ComparisonTableComponent {

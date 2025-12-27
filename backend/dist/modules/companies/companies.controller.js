@@ -31,16 +31,16 @@ let CompaniesController = class CompaniesController {
     findOne(id) {
         return this.companiesService.findOne(id);
     }
-    create(file, createCompanyDto) {
+    async create(file, dto) {
         return this.companiesService.create({
-            ...createCompanyDto,
-            logoUrl: file ? `/uploads/companies/${file.filename}` : createCompanyDto.logoUrl,
+            ...dto,
+            logo_url: file ? `/uploads/companies/${file.filename}` : dto.logo_url,
         });
     }
-    update(id, file, updateCompanyDto) {
+    async update(id, file, dto) {
         return this.companiesService.update(id, {
-            ...updateCompanyDto,
-            ...(file && { logoUrl: `/uploads/companies/${file.filename}` }),
+            ...dto,
+            ...(file && { logo_url: `/uploads/companies/${file.filename}` }),
         });
     }
     remove(id) {
@@ -66,7 +66,7 @@ __decorate([
     (0, common_1.Post)(),
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('logo', {
         storage: (0, multer_1.diskStorage)({
-            destination: './uploads/companies',
+            destination: (0, path_1.join)(process.cwd(), 'uploads/companies'),
             filename: (_req, file, cb) => {
                 const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1e9);
                 cb(null, uniqueName + (0, path_1.extname)(file.originalname));
@@ -83,13 +83,13 @@ __decorate([
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, create_company_dto_1.CreateCompanyDto]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], CompaniesController.prototype, "create", null);
 __decorate([
     (0, common_1.Put)(':id'),
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('logo', {
         storage: (0, multer_1.diskStorage)({
-            destination: './uploads/companies',
+            destination: (0, path_1.join)(process.cwd(), 'uploads/companies'),
             filename: (_req, file, cb) => {
                 const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1e9);
                 cb(null, uniqueName + (0, path_1.extname)(file.originalname));
@@ -107,7 +107,7 @@ __decorate([
     __param(2, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Number, Object, update_company_dto_1.UpdateCompanyDto]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], CompaniesController.prototype, "update", null);
 __decorate([
     (0, common_1.Delete)(':id'),

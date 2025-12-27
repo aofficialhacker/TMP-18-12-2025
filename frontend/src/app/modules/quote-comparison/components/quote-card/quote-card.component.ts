@@ -13,12 +13,8 @@ import jsPDF from 'jspdf';
   template: `
     <div class="quote-wrapper" id="quotePdf" *ngIf="comparison">
 
-      <!-- HEADER -->
-      <div class="quote-header">
-        Health Insurance Policy Quote
-      </div>
+      <div class="quote-header">Health Insurance Policy Quote</div>
 
-      <!-- INTRO -->
       <div class="quote-intro">
         <p><strong>Greetings from Finqy Insure!</strong></p>
         <p>
@@ -29,42 +25,46 @@ import jsPDF from 'jspdf';
 
       <!-- CLIENT DETAILS -->
       <div class="section">
-        <div class="section-title">Client Details</div>
-
-        <table class="client-table">
-          <tr><th>Name</th><td>{{ comparison.clientDetails?.name || '-' }}</td></tr>
-          <tr><th>Date of Birth</th><td>{{ comparison.clientDetails?.dob || '-' }}</td></tr>
-          <tr><th>Age</th><td>{{ comparison.clientDetails?.age || '-' }}</td></tr>
-          <tr><th>Pre-existing Details</th><td>{{ comparison.clientDetails?.preExistingDisease || '-' }}</td></tr>
-          <tr><th>Plan Type</th><td>{{ comparison.clientDetails?.planType || '-' }}</td></tr>
-          <tr><th>Policy Type</th><td>{{ comparison.clientDetails?.policyType || '-' }}</td></tr>
-        </table>
+        <div class="client-box">
+          <div class="client-header">Client Details</div>
+          <table class="client-table">
+            <tr><th>Name</th><td>{{ comparison.clientDetails?.name || '-' }}</td></tr>
+            <tr><th>Date of Birth</th><td>{{ comparison.clientDetails?.dob || '-' }}</td></tr>
+            <tr><th>Age</th><td>{{ comparison.clientDetails?.age || '-' }}</td></tr>
+            <tr><th>Pre-existing Details</th><td>{{ comparison.clientDetails?.preExistingDisease || '-' }}</td></tr>
+            <tr><th>Plan Type</th><td>{{ comparison.clientDetails?.planType || '-' }}</td></tr>
+            <tr><th>Policy Type</th><td>{{ comparison.clientDetails?.policyType || '-' }}</td></tr>
+          </table>
+        </div>
       </div>
 
       <!-- SELECTED PLANS -->
       <div class="section">
         <div class="section-title">Selected Plans</div>
 
-        <table class="plans-table">
+        <table class="plans-table equal-plans">
+          <colgroup>
+            <col style="width:25%">
+            <col style="width:25%">
+            <col style="width:25%">
+            <col style="width:25%">
+          </colgroup>
+
           <tr>
             <th>Company Name</th>
             <td *ngFor="let plan of comparison.plans">
               <div class="company-cell">
                 <div class="logo-box">
-                  <img *ngIf="plan.companyLogo" [src]="plan.companyLogo" />
+                  <img *ngIf="plan.companyLogo" [src]="plan.companyLogo" crossorigin="anonymous" />
                 </div>
-                <div class="company-name">
-                  {{ plan.companyName }}
-                </div>
+                <div class="company-name">{{ plan.companyName }}</div>
               </div>
             </td>
           </tr>
 
           <tr>
             <th>Plan Name</th>
-            <td *ngFor="let plan of comparison.plans">
-              {{ plan.planName }}
-            </td>
+            <td *ngFor="let plan of comparison.plans">{{ plan.planName }}</td>
           </tr>
 
           <tr>
@@ -103,7 +103,6 @@ import jsPDF from 'jspdf';
         </p>
       </div>
 
-      <!-- ACTION -->
       <div class="action-bar">
         <button class="btn primary" (click)="downloadPdf()">Download PDF</button>
       </div>
@@ -149,10 +148,20 @@ import jsPDF from 'jspdf';
       text-align: center;
     }
 
-    /* CLIENT DETAILS */
+    .client-box { width: 70%; margin: 0 auto; }
+
+    .client-header {
+      background: #2f5fa7;
+      color: #fff;
+      text-align: center;
+      font-weight: 700;
+      padding: 6px 10px;
+      border: 2px solid #2f5fa7;
+      border-bottom: none;
+    }
+
     .client-table {
-      width: 70%;
-      margin: auto;
+      width: 100%;
       border-collapse: collapse;
       border: 2px solid #2f5fa7;
     }
@@ -160,16 +169,14 @@ import jsPDF from 'jspdf';
     .client-table th,
     .client-table td {
       border: 1px solid #2f5fa7;
-      padding: 8px;
-      text-align: center;
+      padding: 6px 10px;
+      font-size: 12.5px;
+      line-height: 1.3;
+      text-align: left;
     }
 
-    .client-table th {
-      background: #f2f6ff;
-      width: 45%;
-    }
+    .client-table th { background: #f2f6ff; width: 45%; }
 
-    /* SELECTED PLANS */
     .plans-table {
       width: 100%;
       border-collapse: collapse;
@@ -184,12 +191,11 @@ import jsPDF from 'jspdf';
       vertical-align: middle;
     }
 
-    .plans-table th {
-      width: 220px;
-      background: #f2f6ff;
+    .equal-plans th,
+    .equal-plans td {
+      width: 25%;
     }
 
-    /* COMPANY CELL */
     .company-cell {
       display: flex;
       flex-direction: column;
@@ -222,28 +228,17 @@ import jsPDF from 'jspdf';
       overflow: hidden;
     }
 
-    .premium {
-      color: #2f5fa7;
-    }
+    .premium { color: #2f5fa7; }
 
-    /* PLAN BENEFITS */
-    .benefits-wrapper {
-      border: 2px solid #2f5fa7;
-      padding: 0;
-    }
+    .benefits-wrapper { border: none; padding: 0; }
 
-    /* TERMS */
     .terms {
       padding: 14px 18px;
       border-bottom: 2px solid #2f5fa7;
       font-size: 12px;
-      text-align: left;
     }
 
-    .muted {
-      margin-top: 6px;
-      color: #444;
-    }
+    .muted { margin-top: 6px; color: #444; }
 
     .action-bar {
       display: flex;
@@ -251,9 +246,7 @@ import jsPDF from 'jspdf';
       padding: 14px 18px;
     }
 
-    .no-print {
-      display: none !important;
-    }
+    .no-print { display: none !important; }
 
     .btn.primary {
       background: #2f5fa7;
@@ -278,7 +271,9 @@ export class QuoteCardComponent {
 
     html2canvas(element, {
       scale: 2,
-      backgroundColor: '#ffffff'
+      useCORS: true,
+      allowTaint: false,
+      backgroundColor: '#ffffff',
     }).then(canvas => {
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
@@ -302,7 +297,6 @@ export class QuoteCardComponent {
       }
 
       pdf.save('Health-Insurance-Quote.pdf');
-
       if (actionBar) actionBar.classList.remove('no-print');
     });
   }

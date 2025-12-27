@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { extname, join } from 'path';
 import { CompaniesService } from './companies.service';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
@@ -35,15 +35,14 @@ export class CompaniesController {
     return this.companiesService.findOne(id);
   }
 
-  // ✅ CREATE WITH OPTIONAL LOGO UPLOAD
+  // ================== CREATE ==================
   @Post()
   @UseInterceptors(
     FileInterceptor('logo', {
       storage: diskStorage({
-        destination: './uploads/companies',
+        destination: join(process.cwd(), 'uploads/companies'),
         filename: (_req, file, cb) => {
-          const uniqueName =
-            Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1e9);
           cb(null, uniqueName + extname(file.originalname));
         },
       }),
@@ -55,25 +54,24 @@ export class CompaniesController {
       },
     }),
   )
-  create(
+  async create(
     @UploadedFile() file: Express.Multer.File,
-    @Body() createCompanyDto: CreateCompanyDto,
+    @Body() dto: CreateCompanyDto,
   ) {
     return this.companiesService.create({
-      ...createCompanyDto,
-      logoUrl: file ? `/uploads/companies/${file.filename}` : createCompanyDto.logoUrl,
+      ...dto,
+      logo_url: file ? `/uploads/companies/${file.filename}` : dto.logo_url,
     });
   }
 
-  // ✅ UPDATE WITH OPTIONAL LOGO UPLOAD
+  // ================== UPDATE ==================
   @Put(':id')
   @UseInterceptors(
     FileInterceptor('logo', {
       storage: diskStorage({
-        destination: './uploads/companies',
+        destination: join(process.cwd(), 'uploads/companies'),
         filename: (_req, file, cb) => {
-          const uniqueName =
-            Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1e9);
           cb(null, uniqueName + extname(file.originalname));
         },
       }),
@@ -85,14 +83,14 @@ export class CompaniesController {
       },
     }),
   )
-  update(
+  async update(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
-    @Body() updateCompanyDto: UpdateCompanyDto,
+    @Body() dto: UpdateCompanyDto,
   ) {
     return this.companiesService.update(id, {
-      ...updateCompanyDto,
-      ...(file && { logoUrl: `/uploads/companies/${file.filename}` }),
+      ...dto,
+      ...(file && { logo_url: `/uploads/companies/${file.filename}` }),
     });
   }
 

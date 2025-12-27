@@ -6,6 +6,7 @@
   <div class="grid">
     <app-plan-selection-card
       *ngFor="let plan of selectedPlans; let i = index; trackBy: trackByIndex"
+      [planIndex]="i"
       [excludedPlanIds]="getExcludedPlanIds(i)"
       (planChange)="onPlanChange(i, $event)">
     </app-plan-selection-card>
@@ -19,13 +20,6 @@
       (click)="comparePlans()">
       Compare
     </button>
-  </div>
-
-  <!-- Quotation Card (RESULT SECTION) -->
-  <div class="comparison-section" *ngIf="comparisonResult">
-    <app-quote-card
-      [comparison]="comparisonResult">
-    </app-quote-card>
   </div>
 
 </div>

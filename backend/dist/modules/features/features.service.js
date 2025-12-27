@@ -79,11 +79,25 @@ let FeaturesService = class FeaturesService {
             dto.displayOrder !== feature.displayOrder) {
             const oldOrder = feature.displayOrder;
             const newOrder = dto.displayOrder;
-            const existing = await this.getFeatureAtDisplayOrder(newOrder, id);
-            if (existing) {
-                await this.shiftDisplayOrdersUp(newOrder, id);
+            const allFeatures = await this.featureRepository.find({
+                order: { displayOrder: 'ASC' },
+            });
+            const otherFeatures = allFeatures.filter(f => f.id !== id);
+            otherFeatures.sort((a, b) => a.displayOrder - b.displayOrder);
+            const reorderedFeatures = [
+                ...otherFeatures.slice(0, newOrder - 1),
+                feature,
+                ...otherFeatures.slice(newOrder - 1),
+            ];
+            for (let i = 0; i < reorderedFeatures.length; i++) {
+                reorderedFeatures[i].displayOrder = -(i + 1);
             }
-            await this.shiftDisplayOrdersDown(oldOrder);
+            await this.featureRepository.save(reorderedFeatures);
+            for (let i = 0; i < reorderedFeatures.length; i++) {
+                reorderedFeatures[i].displayOrder = i + 1;
+            }
+            await this.featureRepository.save(reorderedFeatures);
+            feature.displayOrder = newOrder;
         }
         const updateData = { ...dto };
         if (dto.extractionKeywords) {
@@ -189,6 +203,22 @@ let FeaturesService = class FeaturesService {
             qb.andWhere('f.id != :excludeId', { excludeId });
         }
         return qb.getOne();
+    }
+    async shiftDisplayOrdersBetween(fromOrder, toOrder, excludeId) {
+        const qb = this.featureRepository
+            .createQueryBuilder('f')
+            .where('f.displayOrder >= :fromOrder', { fromOrder })
+            .andWhere('f.displayOrder <= :toOrder', { toOrder })
+            .orderBy('f.displayOrder', 'ASC');
+        if (excludeId) {
+            qb.andWhere('f.id != :excludeId', { excludeId });
+        }
+        const rows = await qb.getMany();
+        for (const r of rows) {
+            await this.featureRepository.update(r.id, {
+                displayOrder: r.displayOrder - 1,
+            });
+        }
     }
 };
 exports.FeaturesService = FeaturesService;

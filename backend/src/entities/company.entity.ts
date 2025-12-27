@@ -11,14 +11,19 @@ import { BrochureUpload } from './brochure-upload.entity';
 
 @Entity('companies')
 export class Company {
+
   @PrimaryGeneratedColumn()
   id: number;
 
   @Column({ length: 255 })
   name: string;
 
+  // REAL FIELD (mapped to DB)
   @Column({ name: 'logo_url', length: 500, nullable: true })
   logoUrl?: string;
+
+  // VIRTUAL ALIAS (keeps old code working, but optional)
+  logo_url?: string;
 
   @Column({ name: 'company_url', type: 'varchar', length: 255, nullable: true })
   companyUrl?: string;

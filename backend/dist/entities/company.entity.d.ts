@@ -4,6 +4,7 @@ export declare class Company {
     id: number;
     name: string;
     logoUrl?: string;
+    logo_url?: string;
     companyUrl?: string;
     description?: string;
     isActive: boolean;

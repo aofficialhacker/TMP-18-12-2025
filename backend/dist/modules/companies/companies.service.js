@@ -17,6 +17,8 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const company_entity_1 = require("../../entities/company.entity");
+const fs_1 = require("fs");
+const path_1 = require("path");
 let CompaniesService = class CompaniesService {
     constructor(companyRepository) {
         this.companyRepository = companyRepository;
@@ -24,7 +26,7 @@ let CompaniesService = class CompaniesService {
     async findAll(includeInactive = false) {
         const qb = this.companyRepository
             .createQueryBuilder('company')
-            .loadRelationCountAndMap('company.activePlansCount', 'company.plans', 'plan', (qb) => qb.where('plan.isActive = :active', { active: true }))
+            .loadRelationCountAndMap('company.activePlansCount', 'company.plans', 'plan', qb => qb.where('plan.isActive = :active', { active: true }))
             .orderBy('company.name', 'ASC');
         if (!includeInactive) {
             qb.where('company.isActive = :active', { active: true });
@@ -36,28 +38,33 @@ let CompaniesService = class CompaniesService {
             where: { id },
             relations: ['plans'],
         });
-        if (!company) {
+        if (!company)
             throw new common_1.NotFoundException(`Company with ID ${id} not found`);
-        }
         return company;
     }
-    async create(createCompanyDto) {
-        const company = this.companyRepository.create({
-            ...createCompanyDto,
-            companyUrl: createCompanyDto.companyUrl ?? null,
+    async create(dto) {
+        const logo = dto.logo_url ??
+            dto.logoUrl ??
+            null;
+        const entity = this.companyRepository.create({
+            ...dto,
+            logoUrl: logo,
+            companyUrl: dto.companyUrl ?? null,
         });
-        return this.companyRepository.save(company);
+        return await this.companyRepository.save(entity);
     }
-    async update(id, updateCompanyDto) {
+    async update(id, dto) {
         const company = await this.findOne(id);
-        const updatedCompany = {
+        const logo = dto.logo_url ??
+            dto.logoUrl ??
+            undefined;
+        const updated = {
             ...company,
-            ...updateCompanyDto,
-            companyUrl: updateCompanyDto.companyUrl !== undefined
-                ? updateCompanyDto.companyUrl ?? null
-                : company.companyUrl,
+            ...dto,
+            companyUrl: dto.companyUrl !== undefined ? dto.companyUrl ?? null : company.companyUrl,
+            ...(logo !== undefined ? { logoUrl: logo } : {}),
         };
-        return this.companyRepository.save(updatedCompany);
+        return await this.companyRepository.save(updated);
     }
     async remove(id) {
         const company = await this.findOne(id);
@@ -69,6 +76,13 @@ let CompaniesService = class CompaniesService {
         const company = await this.findOne(id);
         await this.companyRepository.remove(company);
         return { message: `Company has been permanently deleted` };
+    }
+    async downloadAndSaveLogo(url) {
+        const response = await fetch(url);
+        const buffer = Buffer.from(await response.arrayBuffer());
+        const filename = Date.now() + (0, path_1.extname)(url);
+        (0, fs_1.writeFileSync)(`public/logos/${filename}`, buffer);
+        return filename;
     }
 };
 exports.CompaniesService = CompaniesService;

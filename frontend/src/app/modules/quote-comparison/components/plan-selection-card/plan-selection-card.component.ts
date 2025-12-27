@@ -3,7 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
 import { SelectedPlan } from '../../models/plan.model';
-import { PlanDataService, Company, Plan } from '../../services/plan-data.service';
+import { PlanDataService } from '../../services/plan-data.service';
+import { ComparisonPlan } from '../../models/comparison.model';
 
 @Component({
   selector: 'app-plan-selection-card',
@@ -13,7 +14,7 @@ import { PlanDataService, Company, Plan } from '../../services/plan-data.service
     <div class="card">
 
       <div class="card-title">
-        Plan {{ index + 1 }}
+        Select Plan {{ planIndex + 1 }}
       </div>
 
       <!-- Company -->
@@ -35,8 +36,8 @@ import { PlanDataService, Company, Plan } from '../../services/plan-data.service
           (change)="emitChange()"
           [disabled]="plans.length === 0">
           <option [ngValue]="undefined">Select Plan</option>
-          <option *ngFor="let p of filteredPlans()" [ngValue]="p.id">
-            {{ p.name }}
+          <option *ngFor="let p of filteredPlans()" [ngValue]="p.planId">
+            {{ p.planName }}
           </option>
         </select>
       </div>
@@ -124,7 +125,6 @@ import { PlanDataService, Company, Plan } from '../../services/plan-data.service
       box-shadow: 0 0 0 3px rgba(47,95,167,0.15);
     }
 
-    /* Currency input */
     .currency-input {
       display: flex;
       align-items: center;
@@ -137,7 +137,7 @@ import { PlanDataService, Company, Plan } from '../../services/plan-data.service
 
     .currency {
       font-weight: 700;
-      color: #4a5568; /* ✅ requested color */
+      color: #4a5568;
       margin-right: 6px;
     }
 
@@ -157,21 +157,21 @@ import { PlanDataService, Company, Plan } from '../../services/plan-data.service
 export class PlanSelectionCardComponent implements OnInit {
 
   @Input() excludedPlanIds: number[] = [];
-  @Input() index = 0;   // ✅ for Plan 1 / 2 / 3
+  @Input() planIndex = 0;
   @Output() planChange = new EventEmitter<SelectedPlan>();
 
-  companies: Company[] = [];
-  plans: Plan[] = [];
+  companies: any[] = [];
+  plans: ComparisonPlan[] = [];
 
   companyId: number | undefined;
   planId: number | undefined;
   sumInsured: number | undefined;
   premium: number | undefined;
 
-  constructor(private planDataService: PlanDataService) {}
+  constructor(private readonly planDataService: PlanDataService) {}
 
   ngOnInit(): void {
-    this.planDataService.getCompanies().subscribe(data => {
+    this.planDataService.getCompanies().subscribe((data: any[]) => {
       this.companies = data;
     });
   }
@@ -185,34 +185,33 @@ export class PlanSelectionCardComponent implements OnInit {
       return;
     }
 
-    this.planDataService.getPlansByCompany(this.companyId).subscribe(data => {
+    this.planDataService.getPlansByCompany(this.companyId).subscribe((data: ComparisonPlan[]) => {
       this.plans = data;
       this.emitChange();
     });
   }
 
-  filteredPlans(): Plan[] {
+  filteredPlans(): ComparisonPlan[] {
     return this.plans.filter(p =>
-      !this.excludedPlanIds.includes(Number(p.id)) ||
-      Number(p.id) === Number(this.planId)
+      !this.excludedPlanIds.includes(Number(p.planId)) ||
+      Number(p.planId) === Number(this.planId)
     );
   }
 
   emitChange(): void {
     const company = this.companies.find(c => c.id === this.companyId);
-    const plan = this.plans.find(p => p.id === this.planId);
+    const plan = this.plans.find(p => p.planId === this.planId);
 
     this.planChange.emit({
       companyId: this.companyId !== undefined ? String(this.companyId) : undefined,
       companyName: company?.name,
       planId: this.planId !== undefined ? String(this.planId) : undefined,
-      planName: plan?.name,
+      planName: plan?.planName,
       sumInsured: this.sumInsured,
       premium: this.premium
     });
   }
 
-  /* ₹ FORMATTER */
   format(value: number | undefined): string {
     return value ? value.toLocaleString('en-IN') : '';
   }
@@ -224,7 +223,6 @@ export class PlanSelectionCardComponent implements OnInit {
 
     this[field] = num;
     this.emitChange();
-
     input.value = num ? num.toLocaleString('en-IN') : '';
   }
 }

@@ -96,14 +96,41 @@ export class FeaturesService {
       const oldOrder = feature.displayOrder;
       const newOrder = dto.displayOrder;
 
-      const existing = await this.getFeatureAtDisplayOrder(newOrder!, id);
-      if (existing) {
-        await this.shiftDisplayOrdersUp(newOrder!, id);
-      }
+      // Fetch all features and reorder them in memory to avoid unique constraint conflicts
+      const allFeatures = await this.featureRepository.find({
+        order: { displayOrder: 'ASC' },
+      });
 
-      await this.shiftDisplayOrdersDown(oldOrder);
+      // Remove the current feature from the list
+      const otherFeatures = allFeatures.filter(f => f.id !== id);
+
+      // Sort by current display order
+      otherFeatures.sort((a, b) => a.displayOrder - b.displayOrder);
+
+      // Insert the feature at the new position
+      const reorderedFeatures = [
+        ...otherFeatures.slice(0, newOrder - 1),
+        feature,
+        ...otherFeatures.slice(newOrder - 1),
+      ];
+
+      // PHASE 1: Move all features to temporary positions (negative numbers) to avoid unique constraint
+      for (let i = 0; i < reorderedFeatures.length; i++) {
+        reorderedFeatures[i].displayOrder = -(i + 1);
+      }
+      await this.featureRepository.save(reorderedFeatures);
+
+      // PHASE 2: Update all features to their final positions
+      for (let i = 0; i < reorderedFeatures.length; i++) {
+        reorderedFeatures[i].displayOrder = i + 1;
+      }
+      await this.featureRepository.save(reorderedFeatures);
+
+      // Update feature object to reflect new position
+      feature.displayOrder = newOrder;
     }
 
+    // Continue with normal update flow for other fields
     const updateData: any = { ...dto };
 
     if (dto.extractionKeywords) {
@@ -267,5 +294,29 @@ export class FeaturesService {
     }
 
     return qb.getOne();
+  }
+
+  private async shiftDisplayOrdersBetween(
+    fromOrder: number,
+    toOrder: number,
+    excludeId?: number,
+  ): Promise<void> {
+    const qb = this.featureRepository
+      .createQueryBuilder('f')
+      .where('f.displayOrder >= :fromOrder', { fromOrder })
+      .andWhere('f.displayOrder <= :toOrder', { toOrder })
+      .orderBy('f.displayOrder', 'ASC');
+
+    if (excludeId) {
+      qb.andWhere('f.id != :excludeId', { excludeId });
+    }
+
+    const rows = await qb.getMany();
+
+    for (const r of rows) {
+      await this.featureRepository.update(r.id, {
+        displayOrder: r.displayOrder - 1,
+      });
+    }
   }
 }

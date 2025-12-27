@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { map, Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 @Injectable({
@@ -18,7 +18,12 @@ export class ApiService {
       'includeInactive',
       includeInactive.toString(),
     );
-    return this.http.get<any[]>(`${this.apiUrl}/companies`, { params });
+    return this.http.get<any[]>(`${this.apiUrl}/companies`, { params }).pipe(
+      map(res => res.map(c => ({
+        ...c,
+        logo_url: c.logo_url   // 🔥 KEEP SNAKE CASE – DO NOT RENAME
+      })))
+    );
   }
 
   getCompany(id: number): Observable<any> {

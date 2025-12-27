@@ -8,13 +8,12 @@ import { CategoriesModule } from './modules/categories/categories.module';
 import { FeaturesModule } from './modules/features/features.module';
 import { PlansModule } from './modules/plans/plans.module';
 import { ExtractionModule } from './modules/extraction/extraction.module';
+import { ImageProxyController } from './image-proxy.controller';
+
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: '.env',
-    }),
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
     TypeOrmModule.forRoot(databaseConfig()),
     AuthModule,
     CompaniesModule,
@@ -22,6 +21,9 @@ import { ExtractionModule } from './modules/extraction/extraction.module';
     FeaturesModule,
     PlansModule,
     ExtractionModule,
+  ],
+  controllers: [
+    ImageProxyController
   ],
 })
 export class AppModule {}

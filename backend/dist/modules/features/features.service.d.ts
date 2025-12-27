@@ -33,4 +33,5 @@ export declare class FeaturesService {
     private shiftDisplayOrdersUp;
     private shiftDisplayOrdersDown;
     private getFeatureAtDisplayOrder;
+    private shiftDisplayOrdersBetween;
 }

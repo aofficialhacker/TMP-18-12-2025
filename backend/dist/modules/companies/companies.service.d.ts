@@ -7,12 +7,13 @@ export declare class CompaniesService {
     constructor(companyRepository: Repository<Company>);
     findAll(includeInactive?: boolean): Promise<Company[]>;
     findOne(id: number): Promise<Company>;
-    create(createCompanyDto: CreateCompanyDto): Promise<Company>;
-    update(id: number, updateCompanyDto: UpdateCompanyDto): Promise<Company>;
+    create(dto: CreateCompanyDto): Promise<Company>;
+    update(id: number, dto: UpdateCompanyDto): Promise<Company>;
     remove(id: number): Promise<{
         message: string;
     }>;
     hardDelete(id: number): Promise<{
         message: string;
     }>;
+    downloadAndSaveLogo(url: string): Promise<string>;
 }

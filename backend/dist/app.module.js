@@ -17,16 +17,14 @@ const categories_module_1 = require("./modules/categories/categories.module");
 const features_module_1 = require("./modules/features/features.module");
 const plans_module_1 = require("./modules/plans/plans.module");
 const extraction_module_1 = require("./modules/extraction/extraction.module");
+const image_proxy_controller_1 = require("./image-proxy.controller");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            config_1.ConfigModule.forRoot({
-                isGlobal: true,
-                envFilePath: '.env',
-            }),
+            config_1.ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
             typeorm_1.TypeOrmModule.forRoot((0, database_config_1.databaseConfig)()),
             auth_module_1.AuthModule,
             companies_module_1.CompaniesModule,
@@ -34,6 +32,9 @@ exports.AppModule = AppModule = __decorate([
             features_module_1.FeaturesModule,
             plans_module_1.PlansModule,
             extraction_module_1.ExtractionModule,
+        ],
+        controllers: [
+            image_proxy_controller_1.ImageProxyController
         ],
     })
 ], AppModule);

@@ -62,9 +62,9 @@ import { RouterModule } from '@angular/router';
           <span>Verify & Save</span>
         </a>
 
-        <a routerLink="/quote-comparision" routerLinkActive="active" class="nav-item">
+        <a routerLink="/quote-comparison" routerLinkActive="active" class="nav-item">
           <span class="icon">📊</span>
-          <span>Quote Comparision</span>
+          <span>Quote Comparison</span>
         </a>
 
 

@@ -6,8 +6,8 @@ export declare class CompaniesController {
     constructor(companiesService: CompaniesService);
     findAll(includeInactive?: string): Promise<import("../../entities").Company[]>;
     findOne(id: number): Promise<import("../../entities").Company>;
-    create(file: Express.Multer.File, createCompanyDto: CreateCompanyDto): Promise<import("../../entities").Company>;
-    update(id: number, file: Express.Multer.File, updateCompanyDto: UpdateCompanyDto): Promise<import("../../entities").Company>;
+    create(file: Express.Multer.File, dto: CreateCompanyDto): Promise<import("../../entities").Company>;
+    update(id: number, file: Express.Multer.File, dto: UpdateCompanyDto): Promise<import("../../entities").Company>;
     remove(id: number): Promise<{
         message: string;
     }>;

@@ -14,7 +14,10 @@ async function bootstrap() {
         (0, fs_1.mkdirSync)(uploadPath, { recursive: true });
     }
     app.useStaticAssets((0, path_1.join)(process.cwd(), 'uploads'), {
-        prefix: '/api/uploads',
+        prefix: '/uploads',
+        setHeaders: (res) => {
+            res.setHeader('Access-Control-Allow-Origin', '*');
+        },
     });
     app.enableCors({
         origin: ['http://localhost:4200'],

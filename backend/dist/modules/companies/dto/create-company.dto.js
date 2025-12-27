@@ -21,10 +21,11 @@ __decorate([
     __metadata("design:type", String)
 ], CreateCompanyDto.prototype, "name", void 0);
 __decorate([
-    (0, class_validator_1.IsString)(),
+    (0, class_transformer_1.Transform)(({ value }) => value?.toString()),
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], CreateCompanyDto.prototype, "logoUrl", void 0);
+], CreateCompanyDto.prototype, "logo_url", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
@@ -37,6 +38,7 @@ __decorate([
     __metadata("design:type", String)
 ], CreateCompanyDto.prototype, "companyUrl", void 0);
 __decorate([
+    (0, class_transformer_1.Transform)(({ value }) => value === 'true' || value === true),
     (0, class_validator_1.IsBoolean)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Boolean)
