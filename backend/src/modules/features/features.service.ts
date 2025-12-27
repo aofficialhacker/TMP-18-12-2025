@@ -55,8 +55,7 @@ export class FeaturesService {
       );
     }
 
-<<<<<<< HEAD
-    // ✅ displayOrder rules
+    // Handle display order
     let displayOrder =
       dto.displayOrder && dto.displayOrder >= 1 ? dto.displayOrder : undefined;
 
@@ -66,36 +65,15 @@ export class FeaturesService {
     } else {
       const existing = await this.getFeatureAtDisplayOrder(displayOrder);
       if (existing) {
-=======
-    // Handle display order
-    let displayOrder = createFeatureDto.displayOrder;
-
-    if (displayOrder === undefined || displayOrder === null) {
-      // Auto-assign to end
-      const maxOrder = await this.getMaxDisplayOrder();
-      displayOrder = maxOrder + 1;
-    } else {
-      // Check if the display order is already occupied
-      const existingFeature = await this.getFeatureAtDisplayOrder(displayOrder);
-      if (existingFeature) {
-        // Shift all features at this position and above
->>>>>>> 3a53d9e670701c580974d464e08a8b4396906d23
         await this.shiftDisplayOrdersUp(displayOrder);
       }
     }
 
     const feature = this.featureRepository.create({
-<<<<<<< HEAD
       ...dto,
       displayOrder,
       extractionKeywords: dto.extractionKeywords
         ? JSON.stringify(dto.extractionKeywords)
-=======
-      ...createFeatureDto,
-      displayOrder,
-      extractionKeywords: createFeatureDto.extractionKeywords
-        ? JSON.stringify(createFeatureDto.extractionKeywords)
->>>>>>> 3a53d9e670701c580974d464e08a8b4396906d23
         : null,
     });
 
@@ -111,7 +89,6 @@ export class FeaturesService {
       throw new BadRequestException('Display order must start from 1');
     }
 
-<<<<<<< HEAD
     if (
       dto.displayOrder !== undefined &&
       dto.displayOrder !== feature.displayOrder
@@ -158,33 +135,6 @@ export class FeaturesService {
 
     if (dto.extractionKeywords) {
       updateData.extractionKeywords = JSON.stringify(dto.extractionKeywords);
-=======
-    // Handle display order changes
-    if (
-      updateFeatureDto.displayOrder !== undefined &&
-      updateFeatureDto.displayOrder !== feature.displayOrder
-    ) {
-      const oldDisplayOrder = feature.displayOrder;
-      const newDisplayOrder = updateFeatureDto.displayOrder;
-
-      // Check if the new display order is occupied by another feature
-      const existingFeature = await this.getFeatureAtDisplayOrder(
-        newDisplayOrder,
-        id,
-      );
-      if (existingFeature) {
-        // Shift features at the new position and above to make room
-        await this.shiftDisplayOrdersUp(newDisplayOrder, id);
-      }
-
-      // Fill the gap at the old position by shifting down
-      await this.shiftDisplayOrdersDown(oldDisplayOrder);
-    }
-
-    const updateData: any = { ...updateFeatureDto };
-    if (updateFeatureDto.extractionKeywords) {
-      updateData.extractionKeywords = JSON.stringify(updateFeatureDto.extractionKeywords);
->>>>>>> 3a53d9e670701c580974d464e08a8b4396906d23
     }
 
     Object.assign(feature, updateData);
@@ -287,91 +237,6 @@ export class FeaturesService {
   /* ================= HELPERS ================= */
 
   private async getMaxDisplayOrder(): Promise<number> {
-    const r = await this.featureRepository
-      .createQueryBuilder('f')
-      .select('MAX(f.displayOrder)', 'max')
-      .getRawOne();
-
-    return r?.max || 0;
-  }
-
-  private async shiftDisplayOrdersUp(
-    fromOrder: number,
-    excludeId?: number,
-  ): Promise<void> {
-    const qb = this.featureRepository
-      .createQueryBuilder('f')
-      .where('f.displayOrder >= :fromOrder', { fromOrder })
-      .orderBy('f.displayOrder', 'DESC');
-
-    if (excludeId) {
-      qb.andWhere('f.id != :excludeId', { excludeId });
-    }
-
-    const rows = await qb.getMany();
-
-    for (const r of rows) {
-      await this.featureRepository.update(r.id, {
-        displayOrder: r.displayOrder + 1,
-      });
-    }
-  }
-
-  private async shiftDisplayOrdersDown(fromOrder: number): Promise<void> {
-    const rows = await this.featureRepository
-      .createQueryBuilder('f')
-      .where('f.displayOrder > :fromOrder', { fromOrder })
-      .orderBy('f.displayOrder', 'ASC')
-      .getMany();
-
-    for (const r of rows) {
-      await this.featureRepository.update(r.id, {
-        displayOrder: r.displayOrder - 1,
-      });
-    }
-  }
-
-  private async getFeatureAtDisplayOrder(
-    order: number,
-    excludeId?: number,
-  ): Promise<Feature | null> {
-    const qb = this.featureRepository
-      .createQueryBuilder('f')
-      .where('f.displayOrder = :order', { order });
-
-    if (excludeId) {
-      qb.andWhere('f.id != :excludeId', { excludeId });
-    }
-
-    return qb.getOne();
-  }
-
-  private async shiftDisplayOrdersBetween(
-    fromOrder: number,
-    toOrder: number,
-    excludeId?: number,
-  ): Promise<void> {
-    const qb = this.featureRepository
-      .createQueryBuilder('f')
-      .where('f.displayOrder >= :fromOrder', { fromOrder })
-      .andWhere('f.displayOrder <= :toOrder', { toOrder })
-      .orderBy('f.displayOrder', 'ASC');
-
-    if (excludeId) {
-      qb.andWhere('f.id != :excludeId', { excludeId });
-    }
-
-    const rows = await qb.getMany();
-
-    for (const r of rows) {
-      await this.featureRepository.update(r.id, {
-        displayOrder: r.displayOrder - 1,
-      });
-    }
-  }
-
-  // Helper methods for display order management
-  private async getMaxDisplayOrder(): Promise<number> {
     const result = await this.featureRepository
       .createQueryBuilder('feature')
       .select('MAX(feature.displayOrder)', 'max')
@@ -432,5 +297,29 @@ export class FeaturesService {
     }
 
     return queryBuilder.getOne();
+  }
+
+  private async shiftDisplayOrdersBetween(
+    fromOrder: number,
+    toOrder: number,
+    excludeId?: number,
+  ): Promise<void> {
+    const qb = this.featureRepository
+      .createQueryBuilder('f')
+      .where('f.displayOrder >= :fromOrder', { fromOrder })
+      .andWhere('f.displayOrder <= :toOrder', { toOrder })
+      .orderBy('f.displayOrder', 'ASC');
+
+    if (excludeId) {
+      qb.andWhere('f.id != :excludeId', { excludeId });
+    }
+
+    const rows = await qb.getMany();
+
+    for (const r of rows) {
+      await this.featureRepository.update(r.id, {
+        displayOrder: r.displayOrder - 1,
+      });
+    }
   }
 }
